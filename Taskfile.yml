@@ -1,0 +1,61 @@
+version: '3'
+
+vars:
+  APP_NAME: jtmpo
+
+env:
+  # Non-secret signing config. KEYSTORE_PATH comes from mise.toml and KEYSTORE_PASSWORD and
+  # KEY_PASSWORD from the gitignored mise.local.toml, so no path or password lands in a committed file.
+  KEY_ALIAS: jtmpo
+
+includes:
+  android-common:
+    taskfile: https://raw.githubusercontent.com/jhot21/taskfiles/main/android.yaml
+    # Not flattened (unlike clipshift/meld): this project keeps its own `test`
+    # (debug variant only, forwards CLI_ARGS) and `lint` tasks, and a flattened
+    # include errors out when a local task shadows an included one. The
+    # passthroughs below keep the CLI surface unchanged.
+    flatten: false
+    aliases: [android,a]
+
+tasks:
+  build:
+    desc: Build debug APK
+    cmds: [{task: android-common:build}]
+
+  build:release:
+    desc: >-
+      Build a signed release APK. Signed if KEYSTORE_PATH, KEYSTORE_PASSWORD,
+      KEY_ALIAS and KEY_PASSWORD are all set (see the README);
+      unsigned otherwise.
+    cmds: [{task: android-common:build:release}]
+
+  test:
+    desc: Run JVM unit tests (extra gradle args after --, e.g. -- --tests '*RhythmTest')
+    cmds:
+      - ./gradlew testDebugUnitTest {{.CLI_ARGS}}
+
+  install:
+    desc: Install the debug APK on the connected device
+    cmds: [{task: android-common:install}]
+
+  lint:
+    desc: Run Android lint on the debug variant (fails on errors)
+    cmds:
+      - ./gradlew lintDebug
+
+  check:
+    desc: Run lint and unit tests
+    cmds: [{task: android-common:check}]
+
+  clean:
+    desc: Clean build artifacts
+    cmds: [{task: android-common:clean}]
+
+  send:debug:
+    desc: Use wormhole to send the debug APK
+    cmds: [{task: android-common:send:debug}]
+
+  set-version:
+    desc: "Set app version and bump the build number (usage: task set-version -- <version-name>)"
+    cmds: [{task: android-common:set-version, vars: {CLI_ARGS: '{{.CLI_ARGS}}'}}]

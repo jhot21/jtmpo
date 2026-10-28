@@ -1,0 +1,6 @@
+[env]
+KEYSTORE_PATH = "{{ config_root }}/jtmpo-release-key.jks"
+ANDROID_HOME = "{{ env.HOME }}/Library/Android/sdk"
+
+[tools]
+java = "21"

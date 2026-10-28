@@ -1,0 +1,16 @@
+.superpowers/
+docs/superpowers/
+docs/scratch/
+build/
+.gradle/
+local.properties
+*.jks
+mise.local.toml
+.idea/
+.worktrees/
+.task/
+*.slist
+
+# JVM crash dumps
+hs_err_pid*.log
+replay_pid*.log
