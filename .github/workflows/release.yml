@@ -1,9 +1,9 @@
 name: Release
 
 # Pushing a tag like v0.2.1 runs the checks, builds a signed release APK and publishes it as a
-# GitHub release. The tag must match VERSION_NAME in gradle.properties, and the tagged commit must
-# be on main. versionCode comes from VERSION_CODE in gradle.properties (`task set-version` bumps
-# it). See docs/releasing.md.
+# GitHub release. The tagged commit must be on main. The version comes from the tag alone:
+# versionName is X.Y.Z and versionCode is X*10000 + Y*100 + Z, so it rises with every release and
+# there is no bump commit. See docs/releasing.md.
 
 on:
   push:
@@ -28,17 +28,23 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Check the tag against the repo
+      - name: Derive the version from the tag
         id: version
         run: |
-          name=$(sed -nE 's/^VERSION_NAME=(.*)$/\1/p' gradle.properties)
-          code=$(sed -nE 's/^VERSION_CODE=([0-9]+)$/\1/p' gradle.properties)
-          if [[ -z "$name" || -z "$code" ]]; then
-            echo "::error::Could not read VERSION_NAME and VERSION_CODE from gradle.properties"
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match v<major>.<minor>.<patch>"
             exit 1
           fi
-          if [[ "$GITHUB_REF_NAME" != "v$name" ]]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match VERSION_NAME $name in gradle.properties"
+          major=${BASH_REMATCH[1]} minor=${BASH_REMATCH[2]} patch=${BASH_REMATCH[3]}
+          if (( minor > 99 || patch > 99 )); then
+            echo "::error::minor and patch must each be at most 99"
+            exit 1
+          fi
+          name="$major.$minor.$patch"
+          # 0.2.1 -> 201, 0.3.0 -> 300, 1.0.0 -> 10000. Android's versionCode limit is 2100000000.
+          code=$(( (major * 100 + minor) * 100 + patch ))
+          if (( code > 2100000000 )); then
+            echo "::error::versionCode $code exceeds Android's 2100000000 limit"
             exit 1
           fi
           git fetch --no-tags origin main
@@ -66,13 +72,15 @@ jobs:
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
 
       - name: Build signed release APK
-        # The version comes from gradle.properties, which the previous step already checked against the tag.
         env:
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
           KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        # -P overrides the defaults in gradle.properties, which app/build.gradle.kts reads.
+        run: ./gradlew assembleRelease -PVERSION_NAME="$VERSION_NAME" -PVERSION_CODE="$VERSION_CODE"
 
       - name: Remove keystore
         if: always()
@@ -98,9 +106,11 @@ jobs:
             exit 1
           fi
 
-          code=$("$bt/aapt2" dump badging "$built" | sed -nE "s/.*versionCode='([0-9]+)'.*/\1/p" | head -1)
-          if [[ "$code" != "$EXPECTED_CODE" ]]; then
-            echo "::error::APK versionCode $code is not the expected $EXPECTED_CODE"
+          badging=$("$bt/aapt2" dump badging "$built")
+          code=$(sed -nE "s/.*versionCode='([0-9]+)'.*/\1/p" <<<"$badging" | head -1)
+          name_in_apk=$(sed -nE "s/.*versionName='([^']*)'.*/\1/p" <<<"$badging" | head -1)
+          if [[ "$code" != "$EXPECTED_CODE" || "$name_in_apk" != "$VERSION_NAME" ]]; then
+            echo "::error::APK is $name_in_apk ($code), expected $VERSION_NAME ($EXPECTED_CODE)"
             exit 1
           fi
 

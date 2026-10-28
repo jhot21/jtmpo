@@ -17,7 +17,7 @@ mise exec -- task build     # debug APK
 mise exec -- task install   # install the debug APK on the running emulator/device
 ```
 
-Commits are Conventional Commits (`fix(sheets): ...`). Version numbers live in `gradle.properties`.
+Commits are Conventional Commits (`fix(sheets): ...`). Released versions come from the git tag (`docs/releasing.md`); `gradle.properties` only holds the default for local builds.
 
 ## Code layout
 

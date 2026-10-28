@@ -6,13 +6,8 @@
 otherwise, in which case the output is `jtmpo-unsigned.apk`. Check the task's own output line
 to see which.
 
-Version numbers live in `gradle.properties`. Setting a version also bumps the build number
-(`VERSION_CODE`):
-
-```bash
-mise exec -- task set-version -- 0.2.0   # VERSION_NAME=0.2.0, VERSION_CODE+1
-mise exec -- task build:release
-```
+Local builds take their version from the defaults in `gradle.properties` (`task set-version -- X.Y.Z`
+edits them). Published releases don't use those: the version comes from the git tag, below.
 
 ## One-time signing key setup
 
@@ -33,17 +28,22 @@ the keystore path (`KEYSTORE_PATH`, next to the repo root) and `Taskfile.yml` se
 
 ## Publishing a release
 
-Pushing a tag builds, signs and publishes the APK through `.github/workflows/release.yml`:
+Pushing a tag builds, signs and publishes the APK through `.github/workflows/release.yml`. The tag
+is the only input, so there is no version-bump commit:
 
 ```bash
-mise exec -- task set-version -- 0.3.0   # bumps gradle.properties; commit it and merge to main
 git tag v0.3.0 && git push origin v0.3.0
 ```
 
-The workflow refuses to run unless the tag is `v` plus `VERSION_NAME` from `gradle.properties` and
-the tagged commit is on `main`. It then runs `./gradlew lint test`, builds the signed release,
-checks that the APK carries the expected signing certificate and the `VERSION_CODE` from
-`gradle.properties`, and that the code is higher than the previous release's, and attaches
+For tag `vX.Y.Z` the version name is `X.Y.Z` and the version code is `X*10000 + Y*100 + Z`, so
+`v0.3.0` is code 300 and `v1.0.0` is code 10000. Minor and patch must each be 99 or less, and the
+tag must be plain `vX.Y.Z` (no suffixes). Android only installs an update with a higher version
+code, so don't tag a lower version than one already released.
+
+The workflow refuses to run unless the tagged commit is on `main`. It then runs
+`./gradlew lint test`, builds the signed release with the derived version passed as Gradle
+properties, and checks that the APK carries the expected signing certificate and the expected
+version, and that the code is higher than the previous release's. It attaches
 `jtmpo-<version>.apk` and `SHA256SUMS` to a new GitHub release with generated notes.
 
 The signing certificate's SHA-256 is pinned in `EXPECTED_CERT_SHA256` in the workflow. If you
