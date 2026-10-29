@@ -2,6 +2,7 @@ package me.jhot.jtmpo.importer
 
 import me.jhot.jtmpo.data.Repository
 import me.jhot.jtmpo.data.Song
+import me.jhot.jtmpo.data.titleKey
 import me.jhot.jtmpo.domain.Rhythm
 
 enum class ImportMode { SONGS_ONLY, SONGS_AND_SETLIST }
@@ -21,8 +22,6 @@ data class ImportPreview(
     val conflicts: List<ImportConflict>,
     val setlist: List<ImportEntry>?,
 )
-
-internal fun titleKey(title: String) = title.trim().lowercase()
 
 /**
  * Plans an import without touching the database. Titles match trimmed and case-insensitively, and only
