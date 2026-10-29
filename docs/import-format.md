@@ -81,7 +81,7 @@ the XML parser is configured to ignore external entities.
 
 Share is in both setlist menus (the list of setlists and the open setlist). It writes the setlist as a
 `.jtmpo` file named after it and opens the Android share sheet; the recipient opens the file, or picks
-it in Settings -> Import. A `.jtmpo` is one JSON document:
+it in Settings -> Import. Share is disabled for an empty setlist, in both menus. A `.jtmpo` is one JSON document:
 
 ```json
 {
