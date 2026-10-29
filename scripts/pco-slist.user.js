@@ -11,7 +11,7 @@
 // The mapping functions are pure and exported for scripts/pco-slist.test.js. The output format is
 // described in docs/import-format.md ("The .jtmpo format").
 
-const API = 'https://api.planningcenteronline.com/services/v2';
+const PCO_API = 'https://api.planningcenteronline.com/services/v2';
 
 // Planning Center's song author (the songwriter) becomes the song's artist. Set to false to leave
 // artists blank, which matches songs previously imported from Tempo.
@@ -115,7 +115,7 @@ async function getJson(url) {
 
 async function fetchPlan(planId) {
   const entries = [];
-  let url = `${API}/plans/${planId}/items?include=song,arrangement&per_page=100`;
+  let url = `${PCO_API}/plans/${planId}/items?include=song,arrangement&per_page=100`;
   while (url) {
     const page = await getJson(url);
     const included = new Map((page.included ?? []).map((i) => [`${i.type}:${i.id}`, i.attributes]));
