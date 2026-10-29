@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
 import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -33,6 +34,14 @@ fun writeShareFile(cacheDir: File, name: String, json: String): File {
     return File(dir, name).apply { writeText(json) }
 }
 
+/** As [writeShareFile], but a full disk or an unwritable cache is a normal outcome: it returns null. */
+fun writeShareFileOrNull(cacheDir: File, name: String, json: String): File? =
+    try {
+        writeShareFile(cacheDir, name, json)
+    } catch (_: IOException) {
+        null
+    }
+
 /** Deletes every earlier share file; they only need to live until the receiving app has read them. */
 fun pruneShareFiles(cacheDir: File) {
     File(cacheDir, SHARE_DIR).listFiles()?.forEach { it.deleteRecursively() }
@@ -51,8 +60,9 @@ fun Context.sendShare(file: File) {
     startActivity(Intent.createChooser(send, null))
 }
 
-/** Writes [json] as `<name>.jtmpo` in the cache and opens the share sheet for it. */
-suspend fun Context.shareSetlistFile(name: String, json: String) {
-    val file = withContext(Dispatchers.IO) { writeShareFile(cacheDir, shareFileName(name), json) }
+/** Writes [json] as `<name>.jtmpo` in the cache and opens the share sheet for it. False if the file could not be written. */
+suspend fun Context.shareSetlistFile(name: String, json: String): Boolean {
+    val file = withContext(Dispatchers.IO) { writeShareFileOrNull(cacheDir, shareFileName(name), json) } ?: return false
     sendShare(file)
+    return true
 }

@@ -3,6 +3,7 @@ package me.jhot.jtmpo.share
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -28,6 +29,15 @@ class ShareFilesTest {
         assertEquals("setlist.jtmpo", shareFileName(""))
         assertEquals("setlist.jtmpo", shareFileName(".."))
         assertFalse(shareFileName("tab\there\nnew").any { it.isISOControl() })
+    }
+
+    @Test
+    fun writeShareFileOrNullReportsAnUnwritableCacheAsNull() {
+        // A regular file where the cache directory should be: the share subdirectory cannot exist.
+        val notADir = tmp.newFile("cache")
+        assertNull(writeShareFileOrNull(notADir, "Friday Gig.jtmpo", "{}"))
+        val cache = tmp.newFolder("ok")
+        assertEquals("{}", writeShareFileOrNull(cache, "Friday Gig.jtmpo", "{}")?.readText())
     }
 
     @Test

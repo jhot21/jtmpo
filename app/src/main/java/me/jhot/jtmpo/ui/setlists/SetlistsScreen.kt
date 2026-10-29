@@ -71,6 +71,7 @@ fun SetlistsScreen(graph: AppGraph, onOpen: (Long) -> Unit, modifier: Modifier =
     var dialog by remember { mutableStateOf<Dialog?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val shareFailed = stringResource(R.string.share_failed)
     val scope = rememberCoroutineScope()
 
     // Also shown after a delete from the setlist's own screen, which deletes through this view model.
@@ -117,7 +118,10 @@ fun SetlistsScreen(graph: AppGraph, onOpen: (Long) -> Unit, modifier: Modifier =
                         showLastPlayed = ui.sort == SetlistSort.RECENT,
                         onOpen = { onOpen(setlist.id) },
                         onShare = {
-                            scope.launch { vm.shareJson(setlist.id)?.let { (name, json) -> context.shareSetlistFile(name, json) } }
+                            scope.launch {
+                                val (name, json) = vm.shareJson(setlist.id) ?: return@launch
+                                if (!context.shareSetlistFile(name, json)) snackbar.showSnackbar(shareFailed)
+                            }
                         },
                         onRename = { dialog = Dialog.Rename(setlist) },
                         onDelete = { dialog = Dialog.Delete(setlist) },

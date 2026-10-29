@@ -87,6 +87,7 @@ fun SetlistDetailScreen(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
+    val shareFailed = stringResource(R.string.share_failed)
     val context = LocalContext.current
     var editingEntry by remember { mutableStateOf<EffectiveSong?>(null) }
     // Bumped on every open so each sheet gets a fresh view model, never a finished or stale one.
@@ -151,7 +152,10 @@ fun SetlistDetailScreen(
                             enabled = entries.isNotEmpty(),
                             onClick = {
                                 menuOpen = false
-                                scope.launch { vm.shareJson(setlistId)?.let { (n, json) -> context.shareSetlistFile(n, json) } }
+                                scope.launch {
+                                    val (n, json) = vm.shareJson(setlistId) ?: return@launch
+                                    if (!context.shareSetlistFile(n, json)) snackbar.showSnackbar(shareFailed)
+                                }
                             },
                         )
                         DropdownMenuItem(text = { Text("Rename") }, onClick = { menuOpen = false; renaming = true })
