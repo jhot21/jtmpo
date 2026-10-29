@@ -1,0 +1,17 @@
+{
+  "type": "jtmpo-setlist",
+  "version": 1,
+  "name": "Sunday Jam",
+  "songs": [
+    {"id": 1, "title": "Hotel California", "artist": "Eagles", "tempo": 74, "tsNum": 4, "tsDen": 4, "patDen": 8, "patDotted": false, "notes": "Capo 7. Four-bar intro, then the band comes in."},
+    {"id": 2, "title": "Paper Lanterns", "artist": "The Inventions", "tempo": 126, "tsNum": 4, "tsDen": 4, "patDen": 4, "patDotted": false, "notes": "Count in two bars."},
+    {"id": 3, "title": "Sweet Home Alabama", "artist": "Lynyrd Skynyrd", "tempo": 98, "tsNum": 4, "tsDen": 4, "patDen": 4, "patDotted": false},
+    {"id": 4, "title": "Layla", "tempo": 104, "tsNum": 4, "tsDen": 4, "patDen": 8, "patDotted": false}
+  ],
+  "entries": [
+    {"songId": 1, "tempo": 74, "tsNum": 4, "tsDen": 4, "patDen": 8, "patDotted": false},
+    {"songId": 2, "tempo": 126, "tsNum": 4, "tsDen": 4, "patDen": 4, "patDotted": false, "notes": "Count in two bars."},
+    {"songId": 3, "tempo": 104, "tsNum": 4, "tsDen": 4, "patDen": 4, "patDotted": false},
+    {"songId": 4, "tempo": 104, "tsNum": 4, "tsDen": 4, "patDen": 8, "patDotted": false}
+  ]
+}
