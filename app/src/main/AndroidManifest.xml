@@ -28,6 +28,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
                 <data android:mimeType="application/vnd.jtmpo.setlist+json" />
             </intent-filter>
             <!-- A named .jtmpo under a guessed type (application/json, text/plain). -->
@@ -47,6 +48,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>
