@@ -67,6 +67,24 @@ Verify once: with it active, repeat A1 and A4 and note what changes.
 | --- | --- | --- |
 | [ ] | E1 Tasker/DND profile created and tested |  |
 
+## F. Sharing a setlist
+
+Uses the demo library (`demo/README.md`) and `demo/demo-setlist.jtmpo`. Steps that need a real phone with
+messaging or mail are for the owner; a build agent cannot run them.
+
+| Done | Item | Steps | Expected | Result |
+| --- | --- | --- | --- | --- |
+| [ ] | F1 Share | Open a setlist's menu (both on the setlists list and inside the setlist) and tap Share. Pick Files/Drive or another app. | Share is in both menus. The share sheet offers a file named after the setlist ending `.jtmpo`. An empty setlist has nothing to share (Share is disabled inside it). | |
+| [ ] | F2 Open from Files | `adb push demo/demo-setlist.jtmpo /sdcard/Download/`. In the Files app open it from Downloads and choose jtmpo. | jtmpo comes to the front (no second copy of the app in recents) on Settings -> Import with a confirmation titled "Import "Sunday Jam"?". | |
+| [ ] | F3 Import via Settings | With the file in Downloads, Settings -> Import, Choose file, pick it. | Same confirmation as F2. A Tempo `.slist` still imports as before (D1); a backup file shows "This looks like a backup. Use Restore."; any other file shows "Not a jtmpo setlist file." | |
+| [ ] | F4 Dialog B | Continue F3 with the demo library loaded. Confirm. | "Conflict 1 of 1": the file's "Layla" has no artist, yours is by Derek and the Dominos (with the library as it comes, this is the only conflict). Only Use my song and Add as a new song are offered. | |
+| [ ] | F5 Result | Choose Use my song, finish. Open the new setlist "Sunday Jam". | 4 songs in order: Hotel California, Paper Lanterns, Sweet Home Alabama, Layla. Paper Lanterns is new in the Library. Sweet Home Alabama plays at 104 BPM, marked **set**, library copy still 98. The others have no override. Setlists shows no last-played time for it. | |
+| [ ] | F6 Dialog A | The demo library has no artist-less songs, so restore it fresh (D3), then create "Paper Lanterns" with no artist by hand in the Library. Import the demo setlist. | "Conflict 1 of 2" for Paper Lanterns: your library has it with no artist, the file's is by The Inventions. Update my song, Use my song and Add as a new song are offered. Update changes the library song to the file's artist, tempo and notes in every setlist; "Conflict 2 of 2" is the Layla dialog from F4. | |
+| [ ] | F7 Cancel mid-sequence | Import the file with the A and B conflicts both pending (as in F6, with the hand-made Paper Lanterns back in place). Answer the first, then tap Cancel import on the second. | Back on Import with nothing changed: no new setlist, no new or updated songs. | |
+| [ ] | F8 Name collision | Import the file twice. | The second confirmation says you already have "Sunday Jam" and offers Add as "Sunday Jam (2)". The first setlist is untouched; songs are reused, not duplicated. | |
+| [ ] | F9 Text message (owner) | Send a setlist's `.jtmpo` to the phone by text message (MMS or RCS). Open the attachment. | jtmpo is offered and opens the confirmation, or note which app refuses and why. | |
+| [ ] | F10 Email (owner) | Email the `.jtmpo` as an attachment to the phone. Open it from the mail app. | jtmpo is offered and opens the confirmation, or note which app refuses and why. | |
+
 ## Sign-off
 
 Date: ____  Build/commit: ____  Overall: ____

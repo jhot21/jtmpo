@@ -28,6 +28,9 @@ the tempo control.
   click through your headphones.
 - **Backups and import.** Export everything to a file, restore it later, and import setlists from
   Tempo (`.slist` and `.fzt` exports).
+- **Sharing a setlist.** Share a setlist from its menu as a small `.jtmpo` file; open it on another
+  phone and jtmpo adds the songs and the setlist, reusing songs you already have and asking only when a
+  title matches with a different artist.
 - **Made for in-ears.** The click pauses if the headphones are unplugged or disconnected, rather
   than blaring out of the phone speaker.
 
@@ -52,6 +55,16 @@ and review the preview. It shows which songs are new and which already exist, an
 whose tempo or time signature differs between copies. Choose "Songs only" or "Songs and a setlist",
 then confirm. Importing the same file twice does not duplicate anything. `docs/import-format.md`
 describes exactly what is read.
+
+### Sharing a setlist
+
+Open the menu on a setlist (in the list or inside it) and choose Share to send it as a `.jtmpo` file
+by message, email or any app that takes files. To receive one, open the file and choose jtmpo, or use
+Settings -> Import. jtmpo shows what will be added, then adds the setlist; songs that match one in your
+library are reused, and where the sender played a song at a different tempo the setlist keeps that as an
+override. If a song matches yours by title but one of you has no artist, you choose to update yours, use
+yours, or add the shared one separately. Importing never changes when a setlist was last played.
+`docs/import-format.md` has the details.
 
 ### Backups
 
@@ -79,7 +92,7 @@ To try the app with data, load the demo library: see `demo/README.md`.
   unplugging, screen-off drift.
 - `docs/digital-sound.md` explains the click sound and how it is generated
   (`tools/synth_click.py`).
-- `docs/import-format.md` covers the Tempo import.
+- `docs/import-format.md` covers the Tempo import and the `.jtmpo` format.
 - `docs/releasing.md` covers signed release builds.
 - `AGENTS.md` has notes for AI coding agents working in the repo.
 
