@@ -50,8 +50,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             JtmpoTheme { AppNav(graph) }
         }
-        // A recreated activity still holds the intent it was started with; that file was already taken.
-        if (savedInstanceState == null) receive(intent)
+        if (shouldReceiveLaunchIntent(intent?.flags ?: 0, restored = savedInstanceState != null)) receive(intent)
     }
 
     // singleTask: a file opened from another app while jtmpo runs arrives here, not in a second instance.
@@ -84,3 +83,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+/**
+ * A recreated activity still holds the intent it was started with, and a relaunch from Recents replays
+ * the task's original one; either way that file was already taken, so it must not be offered again.
+ */
+fun shouldReceiveLaunchIntent(flags: Int, restored: Boolean): Boolean =
+    !restored && flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0
