@@ -16,11 +16,7 @@ suspend fun Repository.commitShared(resolved: ResolvedImport): Long = runInTrans
         shared.localId to createSong(shared.title, shared.artist, shared.rhythm, shared.notes)
     }
     // Chosen here, not earlier, so a setlist added meanwhile cannot make two share a name.
-    val taken = snapshot().setlists.map { it.name.trim().lowercase() }.toSet()
-    val name = generateSequence(1) { it + 1 }
-        .map { if (it == 1) resolved.name else "${resolved.name} ($it)" }
-        .first { it.trim().lowercase() !in taken }
-    val setlistId = createSetlist(name)
+    val setlistId = createSetlist(unusedSetlistName(resolved.name, snapshot().setlists.map { it.name }))
     addEntries(
         setlistId,
         resolved.entries.map { entry ->
@@ -29,4 +25,12 @@ suspend fun Repository.commitShared(resolved: ResolvedImport): Long = runInTrans
         },
     )
     setlistId
+}
+
+/** [name] itself if no setlist in [existing] has it (trimmed, ignoring case), else "Name (2)", "Name (3)", ... */
+fun unusedSetlistName(name: String, existing: Collection<String>): String {
+    val taken = existing.map { it.trim().lowercase() }.toSet()
+    return generateSequence(1) { it + 1 }
+        .map { if (it == 1) name else "$name ($it)" }
+        .first { it.trim().lowercase() !in taken }
 }

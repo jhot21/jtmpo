@@ -92,4 +92,50 @@
         <item quantity="one">%d setlist</item>
         <item quantity="other">%d setlists</item>
     </plurals>
+    <string name="import_hint_jtmpo">A setlist shared from jtmpo (.jtmpo) can be imported here too.</string>
+    <string name="shared_import_confirm_title">Import \"%1$s\"?</string>
+    <plurals name="shared_import_entries">
+        <item quantity="one">%d song in the set</item>
+        <item quantity="other">%d songs in the set</item>
+    </plurals>
+    <plurals name="shared_import_exact">
+        <item quantity="one">%d already in your library</item>
+        <item quantity="other">%d already in your library</item>
+    </plurals>
+    <plurals name="shared_import_new">
+        <item quantity="one">%d will be added as a new song</item>
+        <item quantity="other">%d will be added as new songs</item>
+    </plurals>
+    <plurals name="shared_import_decide">
+        <item quantity="one">%d needs your decision after you confirm</item>
+        <item quantity="other">%d need your decision after you confirm</item>
+    </plurals>
+    <string name="shared_import_collision">You already have a setlist called \"%1$s\". It stays as it is; this one can be added under a new name.</string>
+    <string name="shared_import_add_as">Add as \"%1$s\"</string>
+    <string name="shared_import_cancel">Cancel</string>
+    <string name="shared_import_cancel_import">Cancel import</string>
+    <string name="shared_import_conflict_title">Conflict %1$d of %2$d</string>
+    <string name="shared_import_conflict_a">Your library has \"%1$s\" with no artist. The file\'s song is by %2$s.</string>
+    <string name="shared_import_conflict_b">The file\'s \"%1$s\" has no artist. Your library has it by %2$s.</string>
+    <string name="shared_import_differs">The file also differs in %1$s.</string>
+    <string name="shared_import_diff_separator">", "</string>
+    <string name="shared_import_diff_tempo">tempo (%1$d BPM, yours %2$d BPM)</string>
+    <string name="shared_import_diff_time_signature">time signature (%1$s, yours %2$s)</string>
+    <string name="shared_import_diff_click">click pattern (%1$s, yours %2$s)</string>
+    <string name="shared_import_diff_notes">notes</string>
+    <string name="shared_import_update">Update my song</string>
+    <string name="shared_import_update_hint">Replaces its artist, tempo, time signature, click pattern and notes with the file\'s. This changes the song in every setlist that uses it.</string>
+    <string name="shared_import_keep">Use my song</string>
+    <string name="shared_import_keep_hint">Your song stays as it is. Where the file differs, this setlist keeps the file\'s values as an override.</string>
+    <string name="shared_import_new_song">Add as a new song</string>
+    <string name="shared_import_new_hint_a">Keeps your song and adds \"%1$s\" by %2$s as a separate song.</string>
+    <string name="shared_import_new_hint_b">Keeps your song and adds \"%1$s\" with no artist as a separate song.</string>
+    <string name="shared_import_error_backup">This looks like a backup. Use Restore.</string>
+    <string name="shared_import_error_not_setlist">Not a jtmpo setlist file.</string>
+    <string name="shared_import_error_newer">This setlist is from a newer version of jtmpo. Update jtmpo to import it. Nothing was changed.</string>
+    <string name="shared_import_error_invalid">That file could not be read as a jtmpo setlist. Nothing was changed.</string>
+    <plurals name="shared_import_done">
+        <item quantity="one">Imported \"%1$s\" with %2$d song</item>
+        <item quantity="other">Imported \"%1$s\" with %2$d songs</item>
+    </plurals>
 </resources>

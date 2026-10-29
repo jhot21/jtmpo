@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,12 +44,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.jhot.jtmpo.AppGraph
 import me.jhot.jtmpo.R
 import me.jhot.jtmpo.domain.Rhythm
 import me.jhot.jtmpo.importer.ImportMode
 import me.jhot.jtmpo.importer.readAtMost
+import me.jhot.jtmpo.share.ImportFormat
+import me.jhot.jtmpo.share.detectFormat
 import me.jhot.jtmpo.ui.components.JtmpoSnackbarHost
 import me.jhot.jtmpo.ui.theme.Accent
 import me.jhot.jtmpo.ui.theme.TextSecondary
@@ -65,9 +69,45 @@ fun ImportScreen(graph: AppGraph, onBack: () -> Unit, modifier: Modifier = Modif
     // Configuration-aware, unlike context.resources (lint LocalContextGetResourceValueCall).
     val resources = LocalResources.current
     val snackbar = remember { SnackbarHostState() }
+    val shared: SharedImportViewModel = viewModel(factory = SharedImportViewModel.Factory(graph.repository))
+    val sharedState by shared.state.collectAsStateWithLifecycle()
+    val sharedBusy = sharedState == SharedImportState.Loading || sharedState == SharedImportState.Committing
+    val scope = rememberCoroutineScope()
+
+    // The file decides which import runs, wherever it came from: a Tempo plist takes the existing path.
+    fun route(bytes: ByteArray) = scope.launch {
+        if (withContext(Dispatchers.Default) { detectFormat(bytes) } == ImportFormat.TEMPO) {
+            shared.cancel()
+            vm.load { bytes }
+        } else {
+            shared.load(bytes)
+        }
+    }
 
     val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) vm.load { readBytes(context, uri) }
+        if (uri != null) {
+            scope.launch {
+                // A read failure keeps the Tempo import's own message, as before.
+                val bytes = runCatching { readBytes(context, uri) }.getOrElse { e -> vm.load { throw e }; return@launch }
+                route(bytes)
+            }
+        }
+    }
+
+    // Takes a file opened from another app exactly once: clearing it stops AppNav from navigating here
+    // again, and compareAndSet keeps a second collector from taking the same bytes.
+    LaunchedEffect(graph) {
+        graph.incoming.collect { bytes ->
+            if (bytes != null && graph.incoming.compareAndSet(bytes, null)) route(bytes)
+        }
+    }
+
+    LaunchedEffect(sharedState) {
+        val done = sharedState as? SharedImportState.Done ?: return@LaunchedEffect
+        val text = resources.getQuantityString(R.plurals.shared_import_done, done.entries, done.name, done.entries)
+        // The snackbar outlives this effect, which restarts once the state goes back to Idle.
+        scope.launch { snackbar.showSnackbar(text) }
+        shared.cancel()
     }
 
     LaunchedEffect(vm) {
@@ -101,9 +141,15 @@ fun ImportScreen(graph: AppGraph, onBack: () -> Unit, modifier: Modifier = Modif
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 Text(stringResource(R.string.import_hint), color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    stringResource(R.string.import_hint_jtmpo),
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
                 OutlinedButton(
                     onClick = { pickLauncher.launch(arrayOf("*/*")) },
-                    enabled = !ui.busy,
+                    enabled = !ui.busy && !sharedBusy,
                     modifier = Modifier.padding(top = 12.dp),
                 ) { Text(stringResource(R.string.import_choose_file)) }
             }
@@ -190,6 +236,8 @@ fun ImportScreen(graph: AppGraph, onBack: () -> Unit, modifier: Modifier = Modif
         }
         JtmpoSnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
+
+    SharedImportDialogs(sharedState, onConfirm = shared::confirm, onAnswer = shared::answer, onCancel = shared::cancel)
 
     ui.error?.let { error ->
         AlertDialog(
