@@ -29,22 +29,51 @@ the keystore path (`KEYSTORE_PATH`, next to the repo root) and `Taskfile.yml` se
 ## Publishing a release
 
 Pushing a tag builds, signs and publishes the APK through `.github/workflows/release.yml`. The tag
-is the only input, so there is no version-bump commit:
+is the only input, so there is no version-bump commit. Three tag forms are accepted and nothing
+else (no `+build` suffixes, upper case, leading zeros or other labels):
+
+| Tag | Kind | Source commit |
+| --- | --- | --- |
+| `vX.Y.Z` | final release | must be on `main` |
+| `vX.Y.Z-rc.N` | pre-release (release candidate), N 1 to 48 | any branch |
+| `vX.Y.Z-beta.N` | pre-release (beta), N 1 to 39 | any branch |
+
+The version name is the tag without the `v`. The version code is
+`((X*100 + Y)*100 + Z)*100 + stage`, where the stage is 99 for a final, `50 + N` for `rc.N` and
+`10 + N` for `beta.N`. Minor and patch must each be 99 or less, and the code must stay under
+Android's 2100000000 limit. The rules live in `scripts/release-version.sh` (tested by
+`scripts/release-version.test.sh`, part of `task test:scripts`). Examples:
+
+| Tag | versionName | versionCode |
+| --- | --- | --- |
+| `v0.3.1-beta.1` | `0.3.1-beta.1` | 30111 |
+| `v0.3.1-rc.2` | `0.3.1-rc.2` | 30152 |
+| `v0.3.1` | `0.3.1` | 30199 |
+
+So for one version beta < rc < final, and any stage of the next patch outranks the previous
+final. Android only installs an update with a higher version code, so don't tag a lower version
+than one already released. `v0.2.1` (code 201) and `v0.3.0` (code 300) used the old scheme
+`X*10000 + Y*100 + Z`; every tag in the new scheme has a higher code than both.
+
+To cut a test build from a branch, tag its tip and push the tag:
 
 ```bash
-git tag v0.3.0 && git push origin v0.3.0
+git tag v0.3.1-rc.1 && git push origin v0.3.1-rc.1
 ```
 
-For tag `vX.Y.Z` the version name is `X.Y.Z` and the version code is `X*10000 + Y*100 + Z`, so
-`v0.3.0` is code 300 and `v1.0.0` is code 10000. Minor and patch must each be 99 or less, and the
-tag must be plain `vX.Y.Z` (no suffixes). Android only installs an update with a higher version
-code, so don't tag a lower version than one already released.
+A final release is tagged the same way from `main`:
 
-The workflow refuses to run unless the tagged commit is on `main`. It then runs
-`./gradlew lint test`, builds the signed release with the derived version passed as Gradle
-properties, and checks that the APK carries the expected signing certificate and the expected
-version, and that the code is higher than the previous release's. It attaches
-`jtmpo-<version>.apk` and `SHA256SUMS` to a new GitHub release with generated notes.
+```bash
+git tag v0.3.1 && git push origin v0.3.1
+```
+
+The workflow refuses a final tag whose commit is not on `main`; pre-releases skip that check.
+It then runs `./gradlew lint test`, builds the signed release with the derived version passed as
+Gradle properties, and checks that the APK carries the expected signing certificate and the
+expected version name and code. The code must also be higher than the previous release's: a
+final is compared with the latest final release, a pre-release with the latest release of any
+kind. It attaches `jtmpo-<version>.apk` and `SHA256SUMS` to a new GitHub release with generated
+notes. Pre-releases are marked as such on GitHub, so they never become the "latest" release.
 
 The signing certificate's SHA-256 is pinned in `EXPECTED_CERT_SHA256` in the workflow. If you
 ever generate a new keystore, update it there, and note that installed copies can only update

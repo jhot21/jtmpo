@@ -1,14 +1,20 @@
 name: Release
 
-# Pushing a tag like v0.2.1 runs the checks, builds a signed release APK and publishes it as a
-# GitHub release. The tagged commit must be on main. The version comes from the tag alone:
-# versionName is X.Y.Z and versionCode is X*10000 + Y*100 + Z, so it rises with every release and
-# there is no bump commit. See docs/releasing.md.
+# Pushing a tag runs the checks, builds a signed release APK and publishes it as a GitHub
+# release. Two kinds of tag are accepted:
+#   vX.Y.Z                 a final release. The tagged commit must be on main.
+#   vX.Y.Z-rc.N / -beta.N  a pre-release, published as a GitHub pre-release. It may come from any
+#                          branch, so a change can be test-built before it is merged.
+# The version comes from the tag alone (scripts/release-version.sh): versionName is the tag
+# without the v, and versionCode rises from beta to rc to final, so there is no bump commit.
+# See docs/releasing.md.
 
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
 
 permissions:
   contents: read
@@ -31,30 +37,24 @@ jobs:
       - name: Derive the version from the tag
         id: version
         run: |
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match v<major>.<minor>.<patch>"
+          # On a bad tag the script prints a ::error:: annotation, which must reach the log, not
+          # $GITHUB_OUTPUT.
+          if ! out=$(scripts/release-version.sh "$GITHUB_REF_NAME"); then
+            echo "$out"
             exit 1
           fi
-          major=${BASH_REMATCH[1]} minor=${BASH_REMATCH[2]} patch=${BASH_REMATCH[3]}
-          if (( minor > 99 || patch > 99 )); then
-            echo "::error::minor and patch must each be at most 99"
-            exit 1
-          fi
-          name="$major.$minor.$patch"
-          # 0.2.1 -> 201, 0.3.0 -> 300, 1.0.0 -> 10000. Android's versionCode limit is 2100000000.
-          code=$(( (major * 100 + minor) * 100 + patch ))
-          if (( code > 2100000000 )); then
-            echo "::error::versionCode $code exceeds Android's 2100000000 limit"
-            exit 1
-          fi
+          echo "$out" >> "$GITHUB_OUTPUT"
+          echo "$out" | tr '\n' ' '
+          echo
+
+      - name: Require a final release to be on main
+        if: steps.version.outputs.prerelease == 'false'
+        run: |
           git fetch --no-tags origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "::error::$GITHUB_SHA is not on main. Release only from main."
             exit 1
           fi
-          echo "name=$name" >> "$GITHUB_OUTPUT"
-          echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "versionName $name, versionCode $code"
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
@@ -92,6 +92,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_CODE: ${{ steps.version.outputs.code }}
           VERSION_NAME: ${{ steps.version.outputs.name }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
           bt=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
           built=app/build/outputs/apk/release/app-release.apk
@@ -114,8 +115,14 @@ jobs:
             exit 1
           fi
 
-          # An update only installs if its versionCode is higher than the last release's.
-          prev_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || true)
+          # An update only installs if its versionCode is higher than the previous release's. A
+          # final is compared with the latest final, a pre-release with the latest of any kind.
+          # An empty result (no earlier release) skips the check.
+          if [[ "$PRERELEASE" == true ]]; then
+            prev_tag=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' || true)
+          else
+            prev_tag=$(gh release list --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName' || true)
+          fi
           if [[ -n "$prev_tag" ]]; then
             mkdir "$RUNNER_TEMP/prev"
             gh release download "$prev_tag" --pattern '*.apk' --dir "$RUNNER_TEMP/prev"
@@ -138,9 +145,16 @@ jobs:
           VERSION_NAME: ${{ steps.version.outputs.name }}
           VERSION_CODE: ${{ steps.version.outputs.code }}
           APK_SHA: ${{ steps.apk.outputs.sha }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
+          kind=Release
+          flags=()
+          if [[ "$PRERELEASE" == true ]]; then
+            kind=Pre-release
+            flags+=(--prerelease)
+          fi
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          jtmpo $VERSION_NAME (versionCode $VERSION_CODE), built from commit \`$GITHUB_SHA\`.
+          $kind jtmpo $VERSION_NAME (versionCode $VERSION_CODE), built from commit \`$GITHUB_SHA\`.
 
           - Signing certificate SHA-256: \`$EXPECTED_CERT_SHA256\`
           - APK SHA-256: \`$APK_SHA\`
@@ -150,4 +164,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" release/* \
             --title "jtmpo $VERSION_NAME" \
             --notes-file "$RUNNER_TEMP/notes.md" \
-            --generate-notes
+            --generate-notes \
+            "${flags[@]}"
