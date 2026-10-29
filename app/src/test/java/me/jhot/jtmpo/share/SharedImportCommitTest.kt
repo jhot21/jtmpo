@@ -12,6 +12,7 @@ import me.jhot.jtmpo.domain.Rhythm
 import me.jhot.jtmpo.domain.TimeSignature
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -113,7 +114,7 @@ class SharedImportCommitTest {
         val entries = repo.snapshot().entries.filter { it.setlistId == id }.sortedBy { it.position }
         assertTrue(entries[0].notesOverridden)
         assertEquals("stage note", entries[0].ovNotes)
-        assertEquals(false, entries[1].notesOverridden)
+        assertFalse(entries[1].notesOverridden)
         assertNull(entries[1].ovNotes)
     }
 

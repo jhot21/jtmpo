@@ -7,6 +7,7 @@ import me.jhot.jtmpo.domain.TimeSignature
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SharedImportPlannerTest {
@@ -242,7 +243,9 @@ class SharedImportPlannerTest {
 
         assertThrows(IllegalArgumentException::class.java) { resolveSharedImport(plan, mapOf(1L to Choice.KEEP_MINE)) }
         assertThrows(IllegalArgumentException::class.java) { resolveSharedImport(plan, emptyMap()) }
-        resolveSharedImport(plan, mapOf(1L to Choice.KEEP_MINE, 2L to Choice.KEEP_MINE))
+        val resolved = resolveSharedImport(plan, mapOf(1L to Choice.KEEP_MINE, 2L to Choice.KEEP_MINE))
+        assertEquals(mapOf(1L to 7L, 2L to 8L), resolved.reused)
+        assertTrue(resolved.newSongs.isEmpty())
     }
 
     @Test
