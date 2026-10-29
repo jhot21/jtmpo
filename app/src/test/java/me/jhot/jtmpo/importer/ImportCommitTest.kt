@@ -59,6 +59,18 @@ class ImportCommitTest {
     }
 
     @Test
+    fun tempoImportBesideASongWithAnArtistCreatesAnArtistlessSong() = runBlocking {
+        repo.createSong("Gratitude", "X", r100, null)
+        val plan = planImport(
+            listOf(FztSetlist("L", listOf(fs("Gratitude")))), listOf(0), ImportMode.SONGS_ONLY, repo.songs().first(),
+        )
+        repo.commitImport(plan, null)
+        val songs = repo.songs().first()
+        assertEquals(2, songs.size)
+        assertEquals(setOf("X", null), songs.map { it.artist }.toSet())
+    }
+
+    @Test
     fun songsOnlyCommitCreatesNoSetlist() = runBlocking {
         val plan = planImport(listOf(FztSetlist("L", listOf(fs("A")))), listOf(0), ImportMode.SONGS_ONLY, emptyList())
         repo.commitImport(plan, null)

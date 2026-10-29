@@ -117,6 +117,43 @@ class EditSongViewModelTest {
     }
 
     @Test
+    fun savingADuplicateKeepsTheSheetOpenAndFlagsIt() = runBlocking {
+        repo.createSong("Taken", "Them", r(100), null)
+        val vm = vms.track(EditSongViewModel(null, null, repo, playback)).also { it.loaded() }
+        vm.setTitle("taken")
+        vm.setArtist("Them ")
+        vm.saveToLibrary()?.join()
+        assertFalse(vm.ui.value.finished)
+        assertTrue(vm.ui.value.duplicate)
+        assertEquals(1, repo.songs().first().size)
+    }
+
+    @Test
+    fun editingTitleClearsDuplicateFlag() = runBlocking {
+        repo.createSong("Taken", null, r(100), null)
+        val vm = vms.track(EditSongViewModel(null, null, repo, playback)).also { it.loaded() }
+        vm.setTitle("Taken")
+        vm.saveToLibrary()?.join()
+        assertTrue(vm.ui.value.duplicate)
+        vm.setTitle("Free")
+        assertFalse(vm.ui.value.duplicate)
+        vm.saveToLibrary()?.join()
+        assertTrue(vm.ui.value.finished)
+    }
+
+    @Test
+    fun editingArtistClearsDuplicateFlag() = runBlocking {
+        val songId = repo.createSong("A", null, r(100), null)
+        repo.createSong("B", null, r(100), null)
+        val vm = vms.track(EditSongViewModel(null, songId, repo, playback)).also { it.loaded() }
+        vm.setTitle("B")
+        vm.saveToLibrary()?.join()
+        assertTrue(vm.ui.value.duplicate)
+        vm.setArtist("Someone")
+        assertFalse(vm.ui.value.duplicate)
+    }
+
+    @Test
     fun newSongIsCreatedOnSave() = runBlocking {
         val vm = vms.track(EditSongViewModel(null, null, repo, playback)).also { it.loaded() }
         assertFalse(vm.ui.value.canSave)

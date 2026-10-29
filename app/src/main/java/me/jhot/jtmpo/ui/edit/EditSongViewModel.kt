@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import me.jhot.jtmpo.data.DuplicateSongException
 import me.jhot.jtmpo.data.Repository
 import me.jhot.jtmpo.data.Song
 import me.jhot.jtmpo.domain.ClickPattern
@@ -44,6 +45,8 @@ data class EditUi(
     val previewing: Boolean = false,
     /** True once a save completed and the sheet should close. */
     val finished: Boolean = false,
+    /** The last save was rejected because another song has this title and artist. */
+    val duplicate: Boolean = false,
 )
 
 /**
@@ -206,9 +209,9 @@ class EditSongViewModel(
 
     fun setNotes(notes: String) = edit(notes = true) { it.copy(notes = notes) }
 
-    fun setTitle(title: String) = edit { it.copy(title = title) }
+    fun setTitle(title: String) = edit { it.copy(title = title, duplicate = false) }
 
-    fun setArtist(artist: String) = edit { it.copy(artist = artist) }
+    fun setArtist(artist: String) = edit { it.copy(artist = artist, duplicate = false) }
 
     fun saveToSetlist(): Job? {
         val id = entryId ?: return null
@@ -250,10 +253,15 @@ class EditSongViewModel(
             } else {
                 val artist = s.artist.trim().ifEmpty { null }
                 val existing = librarySong
-                if (existing != null) {
-                    repository.updateSong(existing.copy(title = s.title.trim(), artist = artist, rhythm = s.rhythm, notes = notes))
-                } else {
-                    repository.createSong(s.title.trim(), artist, s.rhythm, notes)
+                try {
+                    if (existing != null) {
+                        repository.updateSong(existing.copy(title = s.title.trim(), artist = artist, rhythm = s.rhythm, notes = notes))
+                    } else {
+                        repository.createSong(s.title.trim(), artist, s.rhythm, notes)
+                    }
+                } catch (_: DuplicateSongException) {
+                    _ui.update { it.copy(duplicate = true) }
+                    return@launch
                 }
             }
             finish()

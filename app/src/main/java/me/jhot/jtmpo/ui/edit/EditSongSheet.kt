@@ -105,7 +105,11 @@ fun EditSongContent(ui: EditUi, vm: EditSongViewModel, bottomInset: Dp, onCancel
         } else {
             OutlinedTextField(
                 ui.title, vm::setTitle, label = { Text("Title") }, singleLine = true,
-                isError = ui.title.isBlank(), modifier = Modifier.fillMaxWidth(),
+                isError = ui.title.isBlank() || ui.duplicate,
+                supportingText = if (ui.duplicate) {
+                    { Text("A song with this title and artist already exists.") }
+                } else null,
+                modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(ui.artist, vm::setArtist, label = { Text("Artist") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         }
