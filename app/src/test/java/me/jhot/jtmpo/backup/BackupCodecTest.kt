@@ -147,6 +147,23 @@ class BackupCodecTest {
         assertEquals("Gratitude", (failure as BackupException.DuplicateSong).title)
     }
 
+    private fun dbSong(id: Long, title: String, artist: String?) =
+        BackupSong(id, title, artist, 100, 4, 4, 4, false, null, id)
+
+    private fun encoded(songs: List<BackupSong>) = BackupCodec.encode(snapshot(songs = songs, entries = emptyList()))
+
+    @Test
+    fun validatorRejectsKeysThatDifferOnlyByUnicodeCase() {
+        val songs = listOf(dbSong(1, "\u00c9cole", "X"), dbSong(2, "\u00e9cole", "x"))
+        assertTrue(BackupCodec.decode(encoded(songs)).exceptionOrNull() is BackupException.DuplicateSong)
+    }
+
+    @Test
+    fun validatorTreatsNullAndEmptyArtistAsTheSame() {
+        val songs = listOf(dbSong(1, "\u00c9cole", null), dbSong(2, "\u00c9cole", ""))
+        assertTrue(BackupCodec.decode(encoded(songs)).exceptionOrNull() is BackupException.DuplicateSong)
+    }
+
     @Test
     fun validatorAcceptImpliesReplaceAllAccepts() = kotlinx.coroutines.runBlocking {
         val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
@@ -154,31 +171,20 @@ class BackupCodecTest {
             .allowMainThreadQueries().build()
         try {
             val repo = me.jhot.jtmpo.data.Repository(db) { 1L }
-            fun s(id: Long, title: String, artist: String?) =
-                BackupSong(id, title, artist, 100, 4, 4, 4, false, null, id)
-            val cases = listOf(
-                // Same key under lowercase(Locale.ROOT): rejected.
-                listOf(s(1, "\u00c9cole", "X"), s(2, "\u00e9cole", "x")),
-                // Differ by artist presence, by case-insensitive title only, by NUL-free boundary: accepted.
-                listOf(s(1, "Ecole", "X"), s(2, "\u00c9cole", "X"), s(3, "\u00c9cole", null), s(4, "\u00c9cole", "")),
-                listOf(s(1, "ab", "c"), s(2, "a", "bc")),
+            val accepted = listOf(
+                "same title, different artists" to listOf(dbSong(1, "Sample", "A"), dbSong(2, "Sample", "B")),
+                "same artist, titles differ by non-case characters" to
+                    listOf(dbSong(1, "Sample One", "A"), dbSong(2, "Sample-One", "A"), dbSong(3, "Sample Two", "A")),
+                "accented vs unaccented" to listOf(dbSong(1, "Ecole", "X"), dbSong(2, "\u00c9cole", "X")),
+                "separator: title with space vs title/artist" to listOf(dbSong(1, "a b", null), dbSong(2, "a", "b")),
+                "boundary shift" to listOf(dbSong(1, "ab", "c"), dbSong(2, "a", "bc")),
             )
-            for (songs in cases) {
-                val result = BackupCodec.decode(BackupCodec.encode(snapshot(songs = songs, entries = emptyList())))
-                val accepted = result.getOrNull()
-                if (accepted != null) {
-                    repo.replaceAll(accepted)
-                } else {
-                    assertTrue(result.exceptionOrNull() is BackupException.DuplicateSong)
-                }
+            for ((label, songs) in accepted) {
+                val snap = BackupCodec.decode(encoded(songs)).getOrNull()
+                assertTrue("validator should accept: $label", snap != null)
+                repo.replaceAll(snap!!)
+                assertEquals(label, songs.size, repo.snapshot().songs.size)
             }
-            // Pin both outcomes: the first is rejected, the near-miss sets that really differ pass.
-            assertTrue(
-                BackupCodec.decode(BackupCodec.encode(snapshot(songs = cases[0], entries = emptyList()))).isFailure,
-            )
-            assertTrue(
-                BackupCodec.decode(BackupCodec.encode(snapshot(songs = cases[2], entries = emptyList()))).isSuccess,
-            )
         } finally {
             db.close()
         }
