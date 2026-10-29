@@ -30,7 +30,7 @@ data class ImportPreview(
  */
 fun planImport(setlists: List<FztSetlist>, selected: List<Int>, mode: ImportMode, existing: List<Song>): ImportPreview {
     val library = HashMap<String, ImportSong>()
-    for (song in existing.filter { it.artist == null }.sortedBy { it.id }) {
+    for (song in existing.filter { it.artist.isNullOrBlank() }.sortedBy { it.id }) {
         library.putIfAbsent(titleKey(song.title), ImportSong(song.title, song.rhythm, song.id))
     }
     val newSongs = LinkedHashMap<String, ImportSong>()

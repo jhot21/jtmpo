@@ -86,6 +86,13 @@ class ImportPlannerTest {
     }
 
     @Test
+    fun blankArtistInTheLibraryCountsAsNoArtist() {
+        val plan = planImport(lists(fs("A")), listOf(0), ImportMode.SONGS_ONLY, listOf(existing(7, "A", "  ")))
+        assertTrue(plan.newSongs.isEmpty())
+        assertEquals(listOf(7L), plan.reused.map { it.existingId })
+    }
+
+    @Test
     fun importingTwiceAddsNoDuplicates() {
         val first = planImport(sample, sample.indices.toList(), ImportMode.SONGS_ONLY, emptyList())
         val saved = first.newSongs.mapIndexed { i, s -> existing(i + 1L, s.title, null, s.rhythm) }
