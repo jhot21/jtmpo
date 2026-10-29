@@ -105,6 +105,17 @@ travels as a difference between an entry and its song). `artist` and `notes` may
 songs or an entry that names a missing song is refused as unreadable. Rhythm values are sanitised the same
 way as a restore.
 
+A `.jtmpo` is also bounded in content, since the 5 MB cap alone does not limit how many objects it decodes to: at most
+2000 songs, 5000 entries, 500 characters for a title, an artist or the setlist name (after trimming) and 10000 characters
+for each song or entry note. A file over any limit is refused as unreadable with a message naming the limit. The app's own
+exports stay within them.
+
+Files written for sharing live in the app's cache; ones at least a day old are deleted when the app starts, so a file a
+chat app has not read yet is not pulled away.
+
+A v1-era backup that holds songs differing only in case or whitespace is refused on Restore with its own message, while
+the in-place upgrade to the new database merges the same data.
+
 ### How songs are matched
 
 Songs match on the same key as the rest of the app: trimmed, case-insensitive title plus artist, with a
@@ -161,9 +172,13 @@ checked on the Android 16 emulator, with `adb shell cmd package query-activities
 | `content:` URI whose path ends in `.jtmpo`, any type | a named file under a guessed type such as `application/json` or `text/plain` | `am start` with `-t application/json` and a `.../Name.jtmpo` URI |
 | `application/octet-stream` | an unknown binary | the Files app (it opens a `.jtmpo` in Downloads as octet-stream through a `downloads.documents/document/msf:N` URI with no file name); jtmpo shows in "Open with" next to other apps |
 
+The two filters that name only a type also declare `scheme="content"`; without it Android matches `file://` URIs
+too. Only `content://` URIs reach jtmpo, and a `file://` URI is not handled (checked with `cmd package
+resolve-activity` / `query-activities`).
+
 All three are kept. The Files app only reaches jtmpo through the octet-stream filter, because its URIs carry no
 extension. The extension filter is case-sensitive (`.JTMPO` does not match) and does not match a URI with no type.
-None of the filters match `http(s)` URIs, so jtmpo is not offered for web downloads. Opening a file from a real
+None of the filters match `http(s)` or `file` URIs, so jtmpo is not offered for web downloads. Opening a file from a real
 mail or chat app is still an acceptance step on a phone (`docs/acceptance.md`, F9 and F10).
 
 Because the octet-stream filter offers jtmpo for any unknown file, the content decides: a file that is not a
