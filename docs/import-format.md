@@ -107,7 +107,7 @@ way as a restore.
 
 A `.jtmpo` is also bounded in content, since the 5 MB cap alone does not limit how many objects it decodes to: at most
 2000 songs, 5000 entries, 500 characters for a title, an artist or the setlist name (after trimming) and 10000 characters
-for each song or entry note. A file over any limit is refused as unreadable with a message naming the limit. Realistic
+for each song or entry note. A file over any limit is refused as unreadable. Realistic
 setlists are far below the limits, but the app does not enforce them when editing or sharing, so an over-limit setlist
 exports fine and is then refused on import. Over a count or length limit it gets the "could not be read as a jtmpo
 setlist" message. A file that grows past 5 MB (possible well within the count limits, with long notes) is refused
