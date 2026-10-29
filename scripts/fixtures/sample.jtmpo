@@ -1,0 +1,98 @@
+{
+  "type": "jtmpo-setlist",
+  "version": 1,
+  "name": "Sample Set",
+  "songs": [
+    {
+      "id": 1,
+      "title": "Example Hymn",
+      "artist": "A. Writer",
+      "tempo": 90,
+      "tsNum": 3,
+      "tsDen": 4,
+      "patDen": 4,
+      "patDotted": false,
+      "notes": null
+    },
+    {
+      "id": 2,
+      "title": "Example Waltz",
+      "artist": "B. Writer and C. Writer",
+      "tempo": 52,
+      "tsNum": 6,
+      "tsDen": 8,
+      "patDen": 4,
+      "patDotted": true,
+      "notes": null
+    },
+    {
+      "id": 3,
+      "title": "Example Slow",
+      "artist": null,
+      "tempo": 60,
+      "tsNum": 6,
+      "tsDen": 4,
+      "patDen": 4,
+      "patDotted": false,
+      "notes": null
+    },
+    {
+      "id": 4,
+      "title": "No Meter Song",
+      "artist": null,
+      "tempo": 100,
+      "tsNum": 4,
+      "tsDen": 4,
+      "patDen": 4,
+      "patDotted": false,
+      "notes": null
+    }
+  ],
+  "entries": [
+    {
+      "songId": 1,
+      "tempo": 90,
+      "tsNum": 3,
+      "tsDen": 4,
+      "patDen": 4,
+      "patDotted": false,
+      "notes": "Key: D"
+    },
+    {
+      "songId": 2,
+      "tempo": 52,
+      "tsNum": 6,
+      "tsDen": 8,
+      "patDen": 4,
+      "patDotted": true,
+      "notes": "Key: G"
+    },
+    {
+      "songId": 3,
+      "tempo": 60,
+      "tsNum": 6,
+      "tsDen": 4,
+      "patDen": 4,
+      "patDotted": false,
+      "notes": null
+    },
+    {
+      "songId": 1,
+      "tempo": 84,
+      "tsNum": 3,
+      "tsDen": 4,
+      "patDen": 4,
+      "patDotted": false,
+      "notes": "Key: E"
+    },
+    {
+      "songId": 4,
+      "tempo": 100,
+      "tsNum": 4,
+      "tsDen": 4,
+      "patDen": 4,
+      "patDotted": false,
+      "notes": "Key: Ab"
+    }
+  ]
+}

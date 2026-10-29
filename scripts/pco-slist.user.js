@@ -1,23 +1,43 @@
 // ==UserScript==
-// @name         Planning Center plan to jtmpo .slist
+// @name         Planning Center plan to jtmpo setlist
 // @namespace    https://github.com/jhot21/jtmpo
-// @version      1.0.0
-// @description  Adds a button to Planning Center Services plan pages that downloads the plan's songs as a Tempo .slist for jtmpo.
+// @version      2.0.0
+// @description  Adds a button to Planning Center Services plan pages that downloads the plan's songs as a jtmpo setlist (.jtmpo) you can open in jtmpo.
 // @match        https://services.planningcenteronline.com/plans/*
 // @grant        none
 // ==/UserScript==
 
 // Reads the plan with the logged-in browser session, so no token is stored. See docs/planning-center.md.
-// The mapping functions are pure and exported for scripts/pco-slist.test.js.
+// The mapping functions are pure and exported for scripts/pco-slist.test.js. The output format is
+// described in docs/import-format.md ("The .jtmpo format").
 
 const API = 'https://api.planningcenteronline.com/services/v2';
+
+// Planning Center's song author (the songwriter) becomes the song's artist. Set to false to leave
+// artists blank, which matches songs previously imported from Tempo.
+const USE_AUTHOR_AS_ARTIST = true;
 
 // A blank meter is common in Planning Center, so it is assumed rather than dropped.
 const DEFAULT_METER = '4/4';
 
-function mapSong(title, bpm, meter) {
-  const name = title.trim();
-  if (!bpm) return { warning: `${name}: no BPM, skipped` };
+const SUPPORTED_DENOMINATORS = [2, 4, 8, 16];
+const COMPOUND_NUMERATORS = [6, 9, 12];
+
+// jtmpo's rhythm, as stored in the file. Tempo counts the beat note: the dotted beat in compound
+// meters (6, 9 or 12 over 8 or 16), otherwise the bottom-number note. The click pattern defaults to
+// one click per beat.
+function rhythmFor(bpm, beats, unit) {
+  const compound = [8, 16].includes(unit) && COMPOUND_NUMERATORS.includes(beats);
+  return compound
+    // Planning Center counts the eighths in 6/8; jtmpo counts the dotted quarters.
+    ? { tempo: Math.round(bpm / 3), tsNum: beats, tsDen: unit, patDen: unit / 2, patDotted: true }
+    : { tempo: bpm, tsNum: beats, tsDen: unit, patDen: unit, patDotted: false };
+}
+
+function mapSong({ title, bpm, meter, key, author }) {
+  const name = (title ?? '').trim();
+  if (!name) return { warnings: ['A song with no title was skipped'] };
+  if (!bpm) return { warnings: [`${name}: no BPM, skipped`] };
 
   const warnings = [];
   let m = meter;
@@ -26,53 +46,63 @@ function mapSong(title, bpm, meter) {
     warnings.push(`${name}: no meter, assumed ${DEFAULT_METER}`);
   }
   const match = /^(\d+)\/(\d+)$/.exec(m.trim());
-  if (!match) return { warning: `${name}: unreadable meter "${meter}", skipped` };
+  if (!match) return { warnings: [`${name}: unreadable meter "${meter}", skipped`] };
   const beats = Number(match[1]);
   const unit = Number(match[2]);
-
-  let song;
-  if (beats === 6 && unit === 8) {
-    // jtmpo's 6/8 counts dotted quarters; Planning Center counts eighths.
-    song = { title: name, tempo: Math.round(bpm / 3), numBeats: 6, numSubBeats: 1, beatCode: 0 };
-  } else if (beats === 6 && unit === 4) {
-    // The importer reads 6 beats with no subdivision as 6/8, so 6/4 needs eighth-note clicks.
-    song = { title: name, tempo: bpm, numBeats: 6, numSubBeats: 2, beatCode: 1 };
-    warnings.push(`${name}: 6/4 imports with eighth-note clicks`);
-  } else if (unit === 4 && beats >= 1) {
-    song = { title: name, tempo: bpm, numBeats: beats, numSubBeats: 1, beatCode: 1 };
-  } else {
-    return { warning: `${name}: meter ${m} is not supported, skipped` };
+  if (beats < 1 || !SUPPORTED_DENOMINATORS.includes(unit)) {
+    return { warnings: [`${name}: meter ${m} is not supported, skipped`] };
   }
-  return { song, warnings };
+
+  const artist = USE_AUTHOR_AS_ARTIST ? (author ?? '').trim() || null : null;
+  const playedKey = (key ?? '').trim();
+  return {
+    item: {
+      title: name,
+      artist,
+      rhythm: rhythmFor(bpm, beats, unit),
+      // The key is chosen per service, so it is the entry's note, not the library song's.
+      notes: playedKey ? `Key: ${playedKey}` : null,
+    },
+    warnings,
+  };
 }
 
 function mapPlan(entries) {
-  const songs = [];
+  const items = [];
   const warnings = [];
-  for (const { title, bpm, meter } of entries) {
-    const result = mapSong(title, bpm, meter);
-    if (result.song) songs.push(result.song);
-    warnings.push(...(result.warnings ?? []), ...(result.warning ? [result.warning] : []));
+  for (const entry of entries) {
+    const result = mapSong(entry);
+    if (result.item) items.push(result.item);
+    warnings.push(...result.warnings);
   }
-  return { songs, warnings };
+  return { items, warnings };
 }
 
-// Control characters other than tab and newlines are not valid in XML 1.0.
-const xmlEscape = (s) =>
-  s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Must agree with songKey in the app: trimmed, lowercased title and artist, joined by a NUL.
+const songKey = (title, artist) => `${title.trim().toLowerCase()}\u0000${(artist ?? '').trim().toLowerCase()}`;
 
-function buildSlist(title, songs) {
-  const int = (k, v) => `<key>${k}</key><integer>${v}</integer>`;
-  const dicts = songs.map((s) =>
-    `<dict><key>title</key><string>${xmlEscape(s.title)}</string>` +
-    int('tempo', s.tempo) + int('beatCode', s.beatCode) +
-    int('numBeats', s.numBeats) + int('numSubBeats', s.numSubBeats) + '</dict>');
-  return `<?xml version='1.0' encoding='UTF-8' ?><plist version="1.0"><dict>` +
-    `<key>title</key><string>${xmlEscape(title)}</string><key>songs</key><array>${dicts.join('')}</array></dict></plist>`;
+// One song per distinct title and artist, taking the first appearance's rhythm as the library value.
+// Every plan entry keeps the rhythm and notes it plays with, so a song used twice with different
+// arrangements stays one song with two entries.
+function buildJtmpo(name, items) {
+  const songs = new Map();
+  const entries = items.map((item) => {
+    const key = songKey(item.title, item.artist);
+    if (!songs.has(key)) {
+      songs.set(key, { id: songs.size + 1, title: item.title, artist: item.artist, ...item.rhythm, notes: null });
+    }
+    return { songId: songs.get(key).id, ...item.rhythm, notes: item.notes };
+  });
+  return JSON.stringify({
+    type: 'jtmpo-setlist',
+    version: 1,
+    name,
+    songs: [...songs.values()],
+    entries,
+  }, null, 2);
 }
 
-if (typeof module !== 'undefined') module.exports = { mapSong, mapPlan, buildSlist };
+if (typeof module !== 'undefined') module.exports = { mapSong, mapPlan, buildJtmpo, songKey };
 
 async function getJson(url) {
   const res = await fetch(url, { credentials: 'include', headers: { Accept: 'application/json' } });
@@ -85,15 +115,21 @@ async function getJson(url) {
 
 async function fetchPlan(planId) {
   const entries = [];
-  let url = `${API}/plans/${planId}/items?include=arrangement&per_page=100`;
+  let url = `${API}/plans/${planId}/items?include=song,arrangement&per_page=100`;
   while (url) {
     const page = await getJson(url);
-    const arrangements = new Map(
-      (page.included ?? []).filter((i) => i.type === 'Arrangement').map((i) => [i.id, i.attributes]));
+    const included = new Map((page.included ?? []).map((i) => [`${i.type}:${i.id}`, i.attributes]));
     for (const item of page.data) {
       if (item.attributes.item_type !== 'song') continue;
-      const arrangement = arrangements.get(item.relationships.arrangement?.data?.id);
-      entries.push({ title: item.attributes.title, bpm: arrangement?.bpm, meter: arrangement?.meter });
+      const arrangement = included.get(`Arrangement:${item.relationships.arrangement?.data?.id}`);
+      const song = included.get(`Song:${item.relationships.song?.data?.id}`);
+      entries.push({
+        title: item.attributes.title,
+        key: item.attributes.key_name,
+        bpm: arrangement?.bpm,
+        meter: arrangement?.meter,
+        author: song?.author,
+      });
     }
     url = page.links?.next ?? null;
   }
@@ -102,7 +138,7 @@ async function fetchPlan(planId) {
 }
 
 function download(filename, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/xml' }));
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/vnd.jtmpo.setlist+json' }));
   const a = Object.assign(document.createElement('a'), { href: url, download: filename });
   document.body.append(a);
   a.click();
@@ -116,10 +152,10 @@ async function onClick(button) {
   button.disabled = true;
   try {
     const { title, entries } = await fetchPlan(planId);
-    const { songs, warnings } = mapPlan(entries);
-    if (!songs.length) throw new Error('No songs with a BPM were found in this plan.');
-    download(`${title.replace(/[^\w.-]+/g, '-')}.slist`, buildSlist(title, songs));
-    alert(`Downloaded ${songs.length} song${songs.length === 1 ? '' : 's'}.` +
+    const { items, warnings } = mapPlan(entries);
+    if (!items.length) throw new Error('No songs with a BPM were found in this plan.');
+    download(`${title.replace(/[^\w.-]+/g, '-')}.jtmpo`, buildJtmpo(title, items));
+    alert(`Downloaded ${items.length} song${items.length === 1 ? '' : 's'}.` +
       (warnings.length ? `\n\nCheck:\n- ${warnings.join('\n- ')}` : ''));
   } catch (e) {
     alert(`jtmpo export failed: ${e.message}`);
@@ -135,7 +171,7 @@ function syncButton() {
   const existing = document.getElementById(id);
   if (!onPlan) return existing?.remove();
   if (existing) return;
-  const button = Object.assign(document.createElement('button'), { id, textContent: 'Download .slist' });
+  const button = Object.assign(document.createElement('button'), { id, textContent: 'Download .jtmpo' });
   button.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9999;padding:8px 14px;' +
     'border:0;border-radius:6px;background:#2d6cdf;color:#fff;font:600 14px sans-serif;cursor:pointer';
   button.addEventListener('click', () => onClick(button));
