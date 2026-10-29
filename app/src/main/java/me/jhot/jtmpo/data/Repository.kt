@@ -202,10 +202,14 @@ class Repository(
 
     /**
      * Re-inserts the song under its old id, then its entries (ascending position per setlist, so
-     * each lands at its old index). Entries whose setlist is gone are dropped. Idempotent.
+     * each lands at its old index). Entries whose setlist is gone are dropped, and so is the whole
+     * undo if the same title and artist has been created again since the delete. Idempotent.
      */
     suspend fun restoreSong(removed: RemovedSong) = db.withTransaction {
         if (songDao.get(removed.song.id) != null) return@withTransaction
+        // Its key taken means the song was re-created after the delete; restoring would only hit
+        // the unique index, so the undo quietly does nothing.
+        if (songDao.idForKey(removed.song.songKey) != null) return@withTransaction
         songDao.insertAll(listOf(removed.song))
         removed.entries.sortedWith(compareBy({ it.setlistId }, { it.position })).forEach { insertEntryAt(it) }
     }

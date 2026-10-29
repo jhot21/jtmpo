@@ -364,6 +364,19 @@ class RepositoryTest {
     }
 
     @Test
+    fun restoringADeletedSongAfterARecreateIsANoOp() = runBlocking {
+        val a = repo.createSong("Tremor", "Aria Vane", r(100), null)
+        val list = repo.createSetlist("Gig")
+        repo.addSongs(list, listOf(a))
+        val removed = repo.removeSong(a)
+        // the user re-creates the same song while the undo snackbar is showing
+        val replacement = repo.createSong("Tremor", "Aria Vane", r(100), null)
+        repo.restoreSong(removed)
+        assertEquals(listOf(replacement), repo.songs().first().map { it.id })
+        assertTrue(repo.entries(list).first().isEmpty())
+    }
+
+    @Test
     fun removeThenRestoreSetlistBringsBackEverything() = runBlocking {
         val a = repo.createSong("A", null, r(100), "lib")
         val b = repo.createSong("B", null, r(120), null)
