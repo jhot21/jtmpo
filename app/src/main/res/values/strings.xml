@@ -83,6 +83,8 @@
     <string name="import_error_empty">That file has no setlists. Nothing was changed.</string>
     <string name="import_error_commit">The import failed. Nothing was changed.</string>
     <string name="import_error_ok">OK</string>
+    <string name="incoming_too_large">That file is too large to import.</string>
+    <string name="incoming_unreadable">That file could not be opened.</string>
     <string name="import_done_songs">Imported %1$s</string>
     <string name="import_done_setlist">Imported %1$s and a setlist with %2$d entries</string>
     <string name="import_setlist_option">%1$s, %2$s</string>

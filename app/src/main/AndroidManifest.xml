@@ -15,10 +15,39 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:screenOrientation="userPortrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Opening a .jtmpo from another app; docs/import-format.md has which filter fires for which sender.
+                 The bytes are always checked, so a non-setlist file only gets a message. -->
+            <!-- The type jtmpo shares with, kept when the receiving app passes it on. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="application/vnd.jtmpo.setlist+json" />
+            </intent-filter>
+            <!-- A named .jtmpo under a guessed type (application/json, text/plain). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.jtmpo" />
+                <data android:pathPattern=".*\\..*\\.jtmpo" />
+                <data android:pathPattern=".*\\..*\\..*\\.jtmpo" />
+            </intent-filter>
+            <!-- The Files app, and mail or chat attachments: octet-stream, no file name in the URI. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>
 

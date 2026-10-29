@@ -12,6 +12,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -97,6 +98,7 @@ fun AppNav(graph: AppGraph) {
     val playback by graph.playback.state.collectAsStateWithLifecycle()
     val activity = LocalActivity.current
     var settingsOrigin by rememberSaveable { mutableStateOf(Routes.SETLISTS) }
+    val incoming by graph.incoming.collectAsStateWithLifecycle()
 
     fun openTab(target: String) {
         val current = tabOf(route)
@@ -173,6 +175,14 @@ fun AppNav(graph: AppGraph) {
                 )
             }
             composable(Routes.PLAYER) { PlayerScreen(graph, onBack = { nav.popBackStack() }) }
+        }
+        // A file opened from another app goes where Settings -> Import would take it. Keyed on the array, so
+        // the same file opened twice is two arrivals. After the NavHost, which must have set the graph.
+        LaunchedEffect(incoming) {
+            if (incoming != null && nav.currentDestination?.route != Routes.IMPORT) {
+                openTab(Routes.SETTINGS)
+                nav.navigate(Routes.IMPORT) { launchSingleTop = true }
+            }
         }
         // After the NavHost so it wins over the host's own pop-to-start-destination handler.
         val back = tabBack(route, settingsOrigin)

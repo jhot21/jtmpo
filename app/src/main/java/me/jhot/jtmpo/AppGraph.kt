@@ -23,6 +23,9 @@ class AppGraph(context: Context) {
     /** True while the player screen is showing; it keeps the screen awake even when the click is paused. */
     val playerOpen = MutableStateFlow(false)
 
+    /** A file another app opened in jtmpo, read into memory; the import screen takes it and clears it. */
+    val incoming = MutableStateFlow<ByteArray?>(null)
+
     init {
         // Unplugged headphones pause through the controller, so the UI and session see it.
         audioOutput.onOutputLost = playback::pause

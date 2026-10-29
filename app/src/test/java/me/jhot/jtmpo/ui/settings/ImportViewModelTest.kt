@@ -71,7 +71,7 @@ class ImportViewModelTest {
 
     @Test
     fun oversizedFileIsUnreadableAndChangesNothing() = runBlocking {
-        vm.load { java.io.ByteArrayInputStream(ByteArray(me.jhot.jtmpo.importer.MAX_FZT_BYTES + 1)).readAtMost() }
+        vm.load { java.io.ByteArrayInputStream(ByteArray(me.jhot.jtmpo.importer.MAX_IMPORT_BYTES + 1)).readAtMost() }
         assertEquals(ImportError.UNREADABLE, withTimeout(5_000) { vm.ui.first { it.error != null } }.error)
         assertTrue(repo.snapshot().songs.isEmpty())
     }

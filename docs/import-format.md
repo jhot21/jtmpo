@@ -62,3 +62,28 @@ duplicates.
 
 Files larger than 5 MB are refused. `<!DOCTYPE>` and `<!ENTITY>` are refused before parsing, and
 the XML parser is configured to ignore external entities.
+
+## Opening files from other apps
+
+jtmpo registers three `VIEW` filters on `MainActivity` so a `.jtmpo` can be opened from another app. Each was
+checked on the Android 16 emulator, with `adb shell cmd package query-activities` and by opening a file for real:
+
+| Filter | Matches | Seen from |
+| --- | --- | --- |
+| `application/vnd.jtmpo.setlist+json` | the type jtmpo shares with | `adb shell am start -a android.intent.action.VIEW -t application/vnd.jtmpo.setlist+json -d content://...`; jtmpo is the only candidate |
+| `content:` URI whose path ends in `.jtmpo`, any type | a named file under a guessed type such as `application/json` or `text/plain` | `am start` with `-t application/json` and a `.../Name.jtmpo` URI |
+| `application/octet-stream` | an unknown binary | the Files app (it opens a `.jtmpo` in Downloads as octet-stream through a `downloads.documents/document/msf:N` URI with no file name); jtmpo shows in "Open with" next to other apps |
+
+All three are kept. The Files app only reaches jtmpo through the octet-stream filter, because its URIs carry no
+extension. The extension filter is case-sensitive (`.JTMPO` does not match) and does not match a URI with no type.
+None of the filters match `http(s)` URIs, so jtmpo is not offered for web downloads. Opening a file from a real
+mail or chat app is still an acceptance step on a phone.
+
+Because the octet-stream filter offers jtmpo for any unknown file, the content decides: a file that is not a
+setlist gets a message and changes nothing. A file over 5 MB is refused with "That file is too large to import."
+and one that cannot be read with "That file could not be opened."
+
+The file is read into memory as soon as the intent arrives, since the sender's read grant may not last, and the
+app then opens Settings -> Import with it. `MainActivity` is `singleTask`: the Files app starts a viewer in its
+own task, so with `singleTop` a second jtmpo activity appeared there. With `singleTask` the running instance
+gets the file through `onNewIntent`.

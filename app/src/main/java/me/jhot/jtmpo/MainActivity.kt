@@ -1,6 +1,7 @@
 package me.jhot.jtmpo
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -10,9 +11,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import android.view.WindowManager
+import android.widget.Toast
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import me.jhot.jtmpo.share.IncomingResult
+import me.jhot.jtmpo.share.receiveIncoming
 import me.jhot.jtmpo.ui.player.keepScreenOnFlow
 import me.jhot.jtmpo.ui.nav.AppNav
 import me.jhot.jtmpo.ui.nav.requestedOrientation
@@ -45,6 +49,30 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             JtmpoTheme { AppNav(graph) }
+        }
+        // A recreated activity still holds the intent it was started with; that file was already taken.
+        if (savedInstanceState == null) receive(intent)
+    }
+
+    // singleTask: a file opened from another app while jtmpo runs arrives here, not in a second instance.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        receive(intent)
+    }
+
+    /** Reads a VIEW intent's file right away, while the sender's read grant is certain to hold. */
+    private fun receive(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+        val graph = (application as JtmpoApp).graph
+        lifecycleScope.launch {
+            val message = when (receiveIncoming(this@MainActivity, uri, graph.incoming)) {
+                IncomingResult.Accepted -> return@launch
+                IncomingResult.TooLarge -> R.string.incoming_too_large
+                IncomingResult.Unreadable -> R.string.incoming_unreadable
+            }
+            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
         }
     }
 
