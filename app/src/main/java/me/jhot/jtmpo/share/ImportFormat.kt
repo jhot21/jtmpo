@@ -12,6 +12,10 @@ enum class ImportFormat { TEMPO, JTMPO, BACKUP, UNKNOWN }
 private const val HEAD_BYTES = 4096
 private val SETLIST_TYPE = Regex("\"type\"\\s*:\\s*\"${Regex.escape(SetlistFileCodec.TYPE)}\"")
 
+/** 3 for a leading UTF-8 byte order mark, else 0; callers decoding text skip this many bytes. */
+fun bomLength(bytes: ByteArray): Int =
+    if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) 3 else 0
+
 /**
  * An XML plist is a Tempo export, JSON with `type == "jtmpo-setlist"` a `.jtmpo`, and JSON with a
  * `setlists` array and no `type` a backup. Anything else, including input over the import cap, is
@@ -19,8 +23,7 @@ private val SETLIST_TYPE = Regex("\"type\"\\s*:\\s*\"${Regex.escape(SetlistFileC
  */
 fun detectFormat(bytes: ByteArray): ImportFormat {
     if (bytes.size > MAX_IMPORT_BYTES) return ImportFormat.UNKNOWN
-    var start = 0
-    if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) start = 3
+    var start = bomLength(bytes)
     while (start < bytes.size && bytes[start].toInt().toChar().isWhitespace()) start++
     if (start >= bytes.size) return ImportFormat.UNKNOWN
     return when (bytes[start].toInt().toChar()) {

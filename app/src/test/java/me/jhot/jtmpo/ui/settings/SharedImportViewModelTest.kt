@@ -241,4 +241,77 @@ class SharedImportViewModelTest {
         vm.cancel()
         assertEquals(SharedImportState.Idle, vm.state.value)
     }
+
+    private suspend fun loadSimple() {
+        vm.load(file("Friday", listOf(SharedSong(1, "Paper Lanterns", null, r(80), null))))
+        awaitState<SharedImportState.Confirm>()
+    }
+
+    @Test
+    fun loadWhileCommittingIsIgnored() = runBlocking {
+        loadSimple()
+        vm.confirm(addWithSuffix = false)
+        assertEquals(SharedImportState.Committing, vm.state.value)
+        vm.load(file("Saturday", listOf(SharedSong(1, "Night Ferry", null, r(90), null))))
+        assertEquals(SharedImportState.Committing, vm.state.value)
+        assertEquals(SharedImportState.Done("Friday", newSongs = 1, entries = 1), awaitState<SharedImportState.Done>())
+        val snap = repo.snapshot()
+        assertEquals(listOf("Paper Lanterns"), snap.songs.map { it.title })
+        assertEquals(listOf("Friday"), snap.setlists.map { it.name })
+    }
+
+    @Test
+    fun secondAnswerWhileCommittingIsIgnored() = runBlocking {
+        seedConflicts()
+        vm.load(conflictFile())
+        awaitState<SharedImportState.Confirm>()
+        vm.confirm(addWithSuffix = false)
+        awaitState<SharedImportState.Conflict>()
+        vm.answer(Choice.NEW)
+        await { it is SharedImportState.Conflict && it.index == 1 }
+        vm.answer(Choice.NEW)
+        assertEquals(SharedImportState.Committing, vm.state.value)
+        vm.answer(Choice.KEEP_MINE)
+        assertEquals(SharedImportState.Committing, vm.state.value)
+        awaitState<SharedImportState.Done>()
+        assertEquals(1, repo.snapshot().setlists.size)
+    }
+
+    @Test
+    fun secondConfirmWhileCommittingIsIgnored() = runBlocking {
+        loadSimple()
+        vm.confirm(addWithSuffix = false)
+        assertEquals(SharedImportState.Committing, vm.state.value)
+        vm.confirm(addWithSuffix = false)
+        assertEquals(SharedImportState.Committing, vm.state.value)
+        awaitState<SharedImportState.Done>()
+        assertEquals(1, repo.snapshot().setlists.size)
+    }
+
+    @Test
+    fun utf8BomFileGoesToConfirm() = runBlocking {
+        val bom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
+        vm.load(bom + file("Friday", listOf(SharedSong(1, "Paper Lanterns", null, r(80), null))))
+        val confirm = awaitState<SharedImportState.Confirm>()
+        assertEquals("Friday", confirm.plan.name)
+    }
+
+    @Test
+    fun successfulCommitEndsInDone() = runBlocking {
+        loadSimple()
+        vm.confirm(addWithSuffix = false)
+        assertEquals(SharedImportState.Done("Friday", newSongs = 1, entries = 1), awaitState<SharedImportState.Done>())
+    }
+
+    @Test
+    fun commitFailureEndsInErrorAndWritesNothing() = runBlocking {
+        vm.load(file("Friday", listOf(SharedSong(1, "Paper Lanterns", null, r(80), null))))
+        awaitState<SharedImportState.Confirm>()
+        // The song appears after planning, so the commit's own duplicate check trips.
+        repo.createSong("Paper Lanterns", null, r(90), null)
+        val before = repo.snapshot()
+        vm.confirm(addWithSuffix = false)
+        assertEquals(SharedImportState.Error(SharedImportError.COMMIT_FAILED), awaitState<SharedImportState.Error>())
+        assertEquals(before, repo.snapshot())
+    }
 }

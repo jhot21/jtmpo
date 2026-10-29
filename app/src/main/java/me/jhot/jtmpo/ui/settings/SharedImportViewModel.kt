@@ -21,6 +21,7 @@ import me.jhot.jtmpo.share.SetlistFileException
 import me.jhot.jtmpo.share.SharedImportPlan
 import me.jhot.jtmpo.share.SongPlan
 import me.jhot.jtmpo.share.commitShared
+import me.jhot.jtmpo.share.bomLength
 import me.jhot.jtmpo.share.detectFormat
 import me.jhot.jtmpo.share.planSharedImport
 import me.jhot.jtmpo.share.resolveSharedImport
@@ -62,6 +63,8 @@ class SharedImportViewModel(private val repository: Repository) : ViewModel() {
     private var job: Job? = null
 
     fun load(bytes: ByteArray) {
+        // A commit under way finishes first; a file that arrives meanwhile is dropped, not allowed to roll it back.
+        if (_state.value == SharedImportState.Committing) return
         job?.cancel()
         decisions.clear()
         _state.value = SharedImportState.Loading
@@ -77,7 +80,9 @@ class SharedImportViewModel(private val repository: Repository) : ViewModel() {
             // A Tempo file never gets here from the screen; to this flow it is just not a setlist.
             ImportFormat.TEMPO, ImportFormat.UNKNOWN -> return SharedImportState.Error(SharedImportError.NOT_A_SETLIST)
         }
-        val file = SetlistFileCodec.decode(bytes.toString(Charsets.UTF_8)).getOrElse { e ->
+        val file = SetlistFileCodec.decode(
+            bytes.decodeToString(startIndex = bomLength(bytes)),
+        ).getOrElse { e ->
             return SharedImportState.Error(
                 when (e) {
                     is SetlistFileException.NewerVersion -> SharedImportError.NEWER_VERSION
@@ -116,18 +121,29 @@ class SharedImportViewModel(private val repository: Repository) : ViewModel() {
         val answers = decisions.toMap()
         _state.value = SharedImportState.Committing
         job = viewModelScope.launch {
-            _state.value = runCatching {
+            val written = try {
                 val resolved = resolveSharedImport(plan, answers)
-                val id = repository.commitShared(resolved)
-                SharedImportState.Done(
-                    name = repository.setlistName(id) ?: resolved.name,
-                    newSongs = resolved.newSongs.size,
-                    entries = resolved.entries.size,
-                )
-            }.getOrElse { e ->
-                if (e is CancellationException) throw e
-                SharedImportState.Error(SharedImportError.COMMIT_FAILED)
+                resolved to repository.commitShared(resolved)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _state.value = SharedImportState.Error(SharedImportError.COMMIT_FAILED)
+                return@launch
             }
+            val (resolved, id) = written
+            // Only for the message: the commit may have renamed the setlist, but a failed read-back must not undo a good write.
+            val name = try {
+                repository.setlistName(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            _state.value = SharedImportState.Done(
+                name = name ?: resolved.name,
+                newSongs = resolved.newSongs.size,
+                entries = resolved.entries.size,
+            )
         }
     }
 
