@@ -35,6 +35,11 @@ tasks:
     cmds:
       - ./gradlew testDebugUnitTest {{.CLI_ARGS}}
 
+  test:scripts:
+    desc: Run the Planning Center userscript tests
+    cmds:
+      - node --test scripts/pco-slist.test.js
+
   install:
     desc: Install the debug APK on the connected device
     cmds: [{task: android-common:install}]
