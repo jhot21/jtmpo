@@ -222,6 +222,8 @@ class Repository(
 
     suspend fun createSetlist(name: String): Long = setlistDao.insert(SetlistEntity(name = name, lastPlayedAt = null))
 
+    suspend fun setlistName(id: Long): String? = setlistDao.get(id)?.name
+
     suspend fun renameSetlist(id: Long, name: String) = setlistDao.rename(id, name)
 
     suspend fun deleteSetlist(id: Long) = setlistDao.delete(id)
