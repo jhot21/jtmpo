@@ -53,7 +53,15 @@ Android's 2100000000 limit. The rules live in `scripts/release-version.sh` (test
 So for one version beta < rc < final, and any stage of the next patch outranks the previous
 final. Android only installs an update with a higher version code, so don't tag a lower version
 than one already released. `v0.2.1` (code 201) and `v0.3.0` (code 300) used the old scheme
-`X*10000 + Y*100 + Z`; every tag in the new scheme has a higher code than both.
+`X*10000 + Y*100 + Z`. Every code the new scheme gives to a version later than `v0.3.0` is higher
+than both (for example `v0.3.1-beta.1` is 30111). Very small versions are the exception: `v0.0.1`
+would get 199, below the old codes.
+
+Watch out for a final release of a lower version after a higher pre-release exists. Say
+`v0.4.0-rc.1` (code 40051) is out and you then tag a hotfix `v0.3.2` (code 30299). The workflow
+admits it, because a final is only compared with the latest final, but a device running the RC
+will not install it: its code is lower. Testers on the RC wait for the next RC or the final of
+the higher version, or uninstall, which wipes local data, so they should back up first.
 
 To cut a test build from a branch, tag its tip and push the tag:
 

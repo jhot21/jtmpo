@@ -107,8 +107,9 @@ way as a restore.
 
 A `.jtmpo` is also bounded in content, since the 5 MB cap alone does not limit how many objects it decodes to: at most
 2000 songs, 5000 entries, 500 characters for a title, an artist or the setlist name (after trimming) and 10000 characters
-for each song or entry note. A file over any limit is refused as unreadable with a message naming the limit. The app's own
-exports stay within them.
+for each song or entry note. A file over any limit is refused as unreadable with a message naming the limit. Realistic
+setlists are far below the limits, but the app does not enforce them when editing or sharing, so an over-limit setlist
+exports fine and is then refused on import with the "could not be read" message.
 
 Files written for sharing live in the app's cache; ones at least a day old are deleted when the app starts, so a file a
 chat app has not read yet is not pulled away.
