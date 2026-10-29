@@ -116,6 +116,9 @@ private fun EntryRow.toEffective(): EffectiveSong {
 
 private fun String?.normalized() = this?.takeIf { it.isNotEmpty() }
 
+/** An entry to append; a non-null [notesOverride] becomes that entry's notes override. */
+data class EntryDraft(val songId: Long, val rhythmOverride: Rhythm? = null, val notesOverride: String? = null)
+
 class DuplicateSongException : Exception("A song with this title and artist already exists")
 
 class Repository(
@@ -262,19 +265,26 @@ class Repository(
     }
 
     /** Appends entries in order; a non-null rhythm becomes that entry's rhythm override. */
-    suspend fun addEntries(setlistId: Long, items: List<Pair<Long, Rhythm?>>) = db.withTransaction {
+    @JvmName("addEntriesWithRhythm")
+    suspend fun addEntries(setlistId: Long, items: List<Pair<Long, Rhythm?>>) =
+        addEntries(setlistId, items.map { (songId, rhythm) -> EntryDraft(songId, rhythm) })
+
+    suspend fun addEntries(setlistId: Long, drafts: List<EntryDraft>) = db.withTransaction {
         var position = entryDao.nextPosition(setlistId)
         entryDao.insertAll(
-            items.map { (songId, rhythm) ->
+            drafts.map { draft ->
+                val rhythm = draft.rhythmOverride
                 EntryEntity(
                     setlistId = setlistId,
-                    songId = songId,
+                    songId = draft.songId,
                     position = position++,
                     ovTempo = rhythm?.tempo,
                     ovTsNum = rhythm?.timeSignature?.numerator,
                     ovTsDen = rhythm?.timeSignature?.denominator,
                     ovPatDen = rhythm?.pattern?.noteDenominator,
                     ovPatDotted = rhythm?.pattern?.dotted,
+                    notesOverridden = draft.notesOverride != null,
+                    ovNotes = draft.notesOverride,
                 )
             },
         )
