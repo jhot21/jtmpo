@@ -27,9 +27,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     # The signing secrets live in this environment, not at repository level, and the environment
-    # needs the owner's approval before the job starts. A tag can come from any commit, and a
-    # commit can edit this very file, so dropping the line would only leave the job without the
-    # secrets. See docs/releasing.md.
+    # only deploys from v* tags, so branch pushes and pull requests can't read them. It has no
+    # required reviewer. See docs/releasing.md.
     environment: release
     permissions:
       contents: write

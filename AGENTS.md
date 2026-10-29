@@ -24,10 +24,10 @@ Commits are Conventional Commits (`fix(sheets): ...`). Released versions come fr
 ## Releasing: do not do it unprompted
 
 Pushing a `v*` tag starts a signed build and publishes a GitHub release: `vX.Y.Z` (final, from `main`), or `vX.Y.Z-rc.N` /
-`vX.Y.Z-beta.N` (pre-release, from any branch). The job runs in the protected `release` environment, which holds the signing
-secrets and waits for the owner's approval. Agents must not push a tag, approve a deployment, or change the repository's rulesets,
-environments or secrets unless the user asked for exactly that in the conversation. Never print the keystore or its passwords; feed
-them to `gh secret set` on standard input. Version rules (`scripts/release-version.sh`) and the approval steps are in `docs/releasing.md`.
+`vX.Y.Z-beta.N` (pre-release, from any branch). The job runs in the `release` environment, which holds the signing
+secrets, only deploys from `v*` tags and has no approval step, so a pushed tag publishes at once. Agents must not push a tag, or change
+the repository's rulesets, environments or secrets, unless the user asked for exactly that in the conversation. Never print the keystore or its passwords; feed
+them to `gh secret set` on standard input. Version rules (`scripts/release-version.sh`) and the environment setup are in `docs/releasing.md`.
 
 ## Code layout
 
