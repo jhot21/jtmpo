@@ -46,7 +46,7 @@
     <string name="clear_rhythm_override">Clear rhythm override</string>
     <string name="settings_data">Data</string>
     <string name="settings_about">About</string>
-    <string name="import_tempo">Import from Tempo (.slist / .fzt)</string>
+    <string name="import_tempo">Import a setlist</string>
     <string name="export_backup">Export backup</string>
     <string name="restore_backup">Restore from backup</string>
     <string name="click_sound">Click sound: %s</string>
@@ -62,9 +62,10 @@
     <string name="backup_duplicates">That backup has two songs with the same title and artist. Nothing was changed.</string>
     <string name="backup_restore_failed">Restore failed. Nothing was changed.</string>
     <string name="back_to_settings">Back to Settings</string>
-    <string name="import_title">Import from Tempo</string>
-    <string name="import_hint">Export one setlist from Tempo as .slist (the easiest way to import a single setlist), or a full export as .fzt. Copy or share the file to Downloads first; Android does not let apps open Tempo\'s own folder.</string>
-    <string name="import_choose_file">Choose .slist / .fzt file</string>
+    <string name="share_failed">Couldn\'t share that setlist.</string>
+    <string name="import_title">Import a setlist</string>
+    <string name="import_hint">Choose a setlist shared from another jtmpo (.jtmpo) or a Tempo export. In Tempo, export one setlist as .slist (the easiest way to import a single setlist), or a full export as .fzt. Copy or share the file to Downloads first; Android does not let apps open Tempo\'s own folder.</string>
+    <string name="import_choose_file">Choose file</string>
     <string name="import_pick_setlists">Tempo setlists</string>
     <string name="import_mode">Import as</string>
     <string name="import_mode_songs">Songs only (add to the library)</string>
@@ -92,7 +93,6 @@
         <item quantity="one">%d setlist</item>
         <item quantity="other">%d setlists</item>
     </plurals>
-    <string name="import_hint_jtmpo">A setlist shared from jtmpo (.jtmpo) can be imported here too.</string>
     <string name="shared_import_confirm_title">Import \"%1$s\"?</string>
     <plurals name="shared_import_entries">
         <item quantity="one">%d song in the set</item>

@@ -141,12 +141,6 @@ fun ImportScreen(graph: AppGraph, onBack: () -> Unit, modifier: Modifier = Modif
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 Text(stringResource(R.string.import_hint), color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    stringResource(R.string.import_hint_jtmpo),
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
                 OutlinedButton(
                     onClick = { pickLauncher.launch(arrayOf("*/*")) },
                     enabled = !ui.busy && !sharedBusy,

@@ -47,7 +47,7 @@ type/id, baseline, pause=true/false) in Result.
 
 | Done | Item | Steps | Expected | Result |
 | --- | --- | --- | --- | --- |
-| [ ] | D1 Import | Copy a `.slist` export to Downloads on the phone. Settings -> Import from Tempo (.slist / .fzt), Choose file, pick it; its one setlist is already selected. Under "Import as" pick "Songs and a setlist" (the default is Songs only). Review the conflict preview, confirm. Repeat once with a full `.fzt` export and choose a single setlist. | Only that setlist and its songs arrive; tempos, time signatures and click patterns look right; the picker works on the device. | |
+| [ ] | D1 Import | Copy a `.slist` export to Downloads on the phone. Settings -> Import a setlist, Choose file, pick it; its one setlist is already selected. Under "Import as" pick "Songs and a setlist" (the default is Songs only). Review the conflict preview, confirm. Repeat once with a full `.fzt` export and choose a single setlist. | Only that setlist and its songs arrive; tempos, time signatures and click patterns look right; the picker works on the device. | |
 | [ ] | D2 Backup export via Drive | Settings -> Export backup, save to Google Drive through the system picker. | File appears in Drive; success message shown. |  |
 | [ ] | D3 Restore via Drive | Change or delete something, then Settings -> Restore from backup, pick the Drive file. | Data returns to the backed-up state. |  |
 | [ ] | D4 Pause after restore | Play a song, then run D3. | Click stops audibly when the restore happens and stays stopped; nothing keeps clicking on stale data. |  |

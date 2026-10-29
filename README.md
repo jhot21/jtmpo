@@ -50,7 +50,7 @@ the visual sync offset, and backup, restore and import.
 ### Importing from Tempo
 
 Export one setlist from Tempo as a `.slist` file (or all of them as `.fzt`) and copy it to the
-Downloads folder on your phone. In jtmpo, open Settings -> Import from Tempo, pick the file,
+Downloads folder on your phone. In jtmpo, open Settings -> Import a setlist, pick the file,
 and review the preview. It shows which songs are new and which already exist, and flags any song
 whose tempo or time signature differs between copies. Choose "Songs only" or "Songs and a setlist",
 then confirm. Importing the same file twice does not duplicate anything. `docs/import-format.md`
