@@ -42,9 +42,18 @@ fun writeShareFileOrNull(cacheDir: File, name: String, json: String): File? =
         null
     }
 
-/** Deletes every earlier share file; they only need to live until the receiving app has read them. */
-fun pruneShareFiles(cacheDir: File) {
-    File(cacheDir, SHARE_DIR).listFiles()?.forEach { it.deleteRecursively() }
+/**
+ * Deletes share files at least [maxAgeMillis] old. A file only needs to live until the receiving app has read it,
+ * but a messaging app may not read it right away, so recent files are kept.
+ */
+fun pruneShareFiles(
+    cacheDir: File,
+    maxAgeMillis: Long = 24L * 60 * 60 * 1000,
+    nowMillis: Long = System.currentTimeMillis(),
+) {
+    File(cacheDir, SHARE_DIR).listFiles()?.forEach {
+        if (nowMillis - it.lastModified() >= maxAgeMillis) it.deleteRecursively()
+    }
 }
 
 fun Context.shareAuthority(): String = "$packageName.share"

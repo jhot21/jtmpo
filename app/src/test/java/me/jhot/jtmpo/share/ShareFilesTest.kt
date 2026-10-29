@@ -50,12 +50,24 @@ class ShareFilesTest {
     }
 
     @Test
-    fun pruneRemovesOldFiles() {
+    fun pruneKeepsRecentFilesAndDeletesOldOnes() {
         val cache = tmp.newFolder("cache2")
-        writeShareFile(cache, "a.jtmpo", "1")
-        writeShareFile(cache, "b.jtmpo", "2")
-        pruneShareFiles(cache)
-        assertEquals(0, File(cache, "share").listFiles()?.size ?: 0)
-        pruneShareFiles(tmp.newFolder("empty")) // no share directory is fine
+        val now = 10L * DAY
+        val old = writeShareFile(cache, "old.jtmpo", "1").apply { setLastModified(now - DAY) }
+        val almost = writeShareFile(cache, "almost.jtmpo", "2").apply { setLastModified(now - DAY + 1) }
+        val fresh = writeShareFile(cache, "fresh.jtmpo", "3").apply { setLastModified(now - 1000) }
+        pruneShareFiles(cache, nowMillis = now)
+        assertFalse(old.exists())
+        assertTrue(almost.exists())
+        assertTrue(fresh.exists())
+    }
+
+    @Test
+    fun pruneWithMissingDirectoryIsFine() {
+        pruneShareFiles(tmp.newFolder("empty"), nowMillis = 10L * DAY)
+    }
+
+    private companion object {
+        const val DAY = 24L * 60 * 60 * 1000
     }
 }
