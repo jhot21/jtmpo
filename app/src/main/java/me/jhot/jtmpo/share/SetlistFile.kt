@@ -6,7 +6,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonObject
 import me.jhot.jtmpo.data.songKey
 import me.jhot.jtmpo.data.storedRhythm
 import me.jhot.jtmpo.domain.Rhythm
@@ -21,9 +20,9 @@ sealed class SetlistFileException(message: String) : Exception(message) {
     class NewerVersion(val version: Int) : SetlistFileException("Setlist format $version is newer than ${SetlistFileCodec.VERSION}")
 
     /** A whole-app backup, which belongs under Restore rather than Open. */
-    object LooksLikeBackup : SetlistFileException("This is a backup file, not a setlist")
+    object LooksLikeBackup : SetlistFileException("This looks like a backup. Use Restore.")
 
-    object NotASetlist : SetlistFileException("Not a jtmpo setlist")
+    object NotASetlist : SetlistFileException("Not a jtmpo setlist file.")
 
     class Invalid(message: String) : SetlistFileException(message)
 }
@@ -101,7 +100,7 @@ object SetlistFileCodec {
     }
 
     private fun parse(text: String): SharedSetlist {
-        val root: JsonObject = json.parseToJsonElement(text).jsonObject
+        val root = json.parseToJsonElement(text) as? JsonObject ?: throw SetlistFileException.NotASetlist
         val type = (root["type"] as? JsonPrimitive)?.takeIf { it.isString }?.content
         if (type != TYPE) {
             if (type == null && root["setlists"] is JsonArray) throw SetlistFileException.LooksLikeBackup

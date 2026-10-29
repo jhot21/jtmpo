@@ -2,6 +2,7 @@ package me.jhot.jtmpo.share
 
 import me.jhot.jtmpo.domain.ClickPattern
 import me.jhot.jtmpo.domain.Rhythm
+import me.jhot.jtmpo.domain.TempoLimits
 import me.jhot.jtmpo.domain.TimeSignature
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -70,12 +71,14 @@ class SetlistFileCodecTest {
     fun rejectsWrongOrMissingType() {
         assertTrue(failure(file(listOf(song(1, "A")), listOf(entry(1)), type = "other")) is SetlistFileException.NotASetlist)
         assertTrue(failure(file(listOf(song(1, "A")), listOf(entry(1)), type = null)) is SetlistFileException.NotASetlist)
+        assertEquals("Not a jtmpo setlist file.", failure(file(listOf(song(1, "A")), listOf(entry(1)), type = "other"))?.message)
     }
 
     @Test
     fun backupShapedJsonIsLooksLikeBackup() {
         val text = """{"version":1,"songs":[],"setlists":[],"entries":[]}"""
         assertTrue(failure(text) is SetlistFileException.LooksLikeBackup)
+        assertEquals("This looks like a backup. Use Restore.", failure(text)?.message)
     }
 
     @Test
@@ -132,5 +135,23 @@ class SetlistFileCodecTest {
     fun unreferencedSongsAreDropped() {
         val decoded = SetlistFileCodec.decode(file(listOf(song(1, "A"), song(2, "B")), listOf(entry(2)))).getOrThrow()
         assertEquals(listOf(2L), decoded.songs.map { it.localId })
+    }
+
+    @Test
+    fun entryRhythmIsSanitisedOnDecode() {
+        val badEntry = """{"songId":1,"tempo":${TempoLimits.MAX + 500},"tsNum":4,"tsDen":7,"patDen":4,"patDotted":false,"notes":null}"""
+        val decoded = SetlistFileCodec.decode(file(listOf(song(1, "A")), listOf(badEntry))).getOrThrow()
+        assertEquals(TimeSignature(4, 4), decoded.entries.single().rhythm.timeSignature)
+        assertEquals(TempoLimits.MAX, decoded.entries.single().rhythm.tempo)
+        assertEquals(100, decoded.songs.single().rhythm.tempo)
+    }
+
+    @Test
+    fun decodeNeverThrowsOnOddInput() {
+        assertTrue(failure("") != null)
+        assertTrue(failure("null") is SetlistFileException.NotASetlist)
+        assertTrue(failure("[]") is SetlistFileException.NotASetlist)
+        val numberForString = """{"type":"jtmpo-setlist","version":1,"name":5,"songs":[],"entries":[]}"""
+        assertTrue(failure(numberForString) != null)
     }
 }
