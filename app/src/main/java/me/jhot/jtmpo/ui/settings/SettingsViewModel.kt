@@ -23,7 +23,7 @@ import me.jhot.jtmpo.data.SettingsStore
 import me.jhot.jtmpo.playback.PlaybackController
 
 /** One-shot results shown as a snackbar. */
-enum class SettingsMessage { EXPORTED, EXPORT_FAILED, RESTORED, RESTORE_UNREADABLE, RESTORE_NEWER, RESTORE_FAILED }
+enum class SettingsMessage { EXPORTED, EXPORT_FAILED, RESTORED, RESTORE_UNREADABLE, RESTORE_NEWER, RESTORE_DUPLICATES, RESTORE_FAILED }
 
 data class SettingsUi(
     val keepAwake: Boolean = true,
@@ -106,8 +106,13 @@ class SettingsViewModel(
                 pending.value = snapshot
                 return@launch
             }
-            val newer = decoded?.exceptionOrNull() is BackupException.NewerVersion
-            messageChannel.send(if (newer) SettingsMessage.RESTORE_NEWER else SettingsMessage.RESTORE_UNREADABLE)
+            messageChannel.send(
+                when (decoded?.exceptionOrNull()) {
+                    is BackupException.NewerVersion -> SettingsMessage.RESTORE_NEWER
+                    is BackupException.DuplicateSong -> SettingsMessage.RESTORE_DUPLICATES
+                    else -> SettingsMessage.RESTORE_UNREADABLE
+                },
+            )
         }
     }
 

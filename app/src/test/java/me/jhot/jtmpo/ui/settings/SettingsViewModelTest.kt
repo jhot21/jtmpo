@@ -131,6 +131,19 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun restoreShowsDuplicatesMessage() = runBlocking {
+        seed()
+        val before = repo.snapshot()
+        val dup = backup.copy(
+            songs = backup.songs + backup.songs[0].copy(id = 999, title = backup.songs[0].title.uppercase() + " "),
+        )
+        vm.loadBackup { BackupCodec.encode(dup) }
+        assertEquals(SettingsMessage.RESTORE_DUPLICATES, next())
+        assertNull(vm.ui.value.pendingRestore)
+        assertEquals(before, repo.snapshot())
+    }
+
+    @Test
     fun restoreFailureLeavesRepositoryUntouched() = runBlocking {
         seed()
         val before = repo.snapshot()

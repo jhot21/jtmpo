@@ -80,6 +80,7 @@ fun SettingsScreen(graph: AppGraph, modifier: Modifier = Modifier, onImportFzt: 
                 SettingsMessage.RESTORED -> R.string.backup_restored
                 SettingsMessage.RESTORE_UNREADABLE -> R.string.backup_unreadable
                 SettingsMessage.RESTORE_NEWER -> R.string.backup_newer
+                SettingsMessage.RESTORE_DUPLICATES -> R.string.backup_duplicates
                 SettingsMessage.RESTORE_FAILED -> R.string.backup_restore_failed
             },
         )

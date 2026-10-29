@@ -10,11 +10,15 @@ import me.jhot.jtmpo.data.BackupEntry
 import me.jhot.jtmpo.data.BackupSetlist
 import me.jhot.jtmpo.data.BackupSnapshot
 import me.jhot.jtmpo.data.BackupSong
+import me.jhot.jtmpo.data.songKey
 import me.jhot.jtmpo.data.storedRhythm
 
 sealed class BackupException(message: String) : Exception(message) {
     /** Written by a newer app; restoring it could silently drop data this version doesn't know. */
     class NewerVersion(val version: Int) : BackupException("Backup format $version is newer than ${BackupCodec.VERSION}")
+
+    /** Two songs share a title and artist (see `songKey`); the database would reject the second. */
+    class DuplicateSong(val title: String) : BackupException("Duplicate song: $title")
 
     class Invalid(message: String) : BackupException(message)
 }
@@ -97,6 +101,8 @@ object BackupCodec {
         fun fail(message: String): Nothing = throw BackupException.Invalid(message)
         if (songs.any { it.id <= 0 } || setlists.any { it.id <= 0 } || entries.any { it.id <= 0 }) fail("Non-positive id")
         if (songs.map { it.id }.toSet().size != songs.size) fail("Duplicate song id")
+        songs.groupBy { songKey(it.title, it.artist) }.values.firstOrNull { it.size > 1 }
+            ?.let { throw BackupException.DuplicateSong(it.first().title) }
         if (setlists.map { it.id }.toSet().size != setlists.size) fail("Duplicate setlist id")
         if (entries.map { it.id }.toSet().size != entries.size) fail("Duplicate entry id")
         val songIds = songs.map { it.id }.toSet()

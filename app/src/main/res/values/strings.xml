@@ -59,6 +59,7 @@
     <string name="backup_restored">Backup restored</string>
     <string name="backup_unreadable">That file is not a valid jtmpo backup. Nothing was changed.</string>
     <string name="backup_newer">That backup was made by a newer version of jtmpo. Nothing was changed.</string>
+    <string name="backup_duplicates">That backup has two songs with the same title and artist. Nothing was changed.</string>
     <string name="backup_restore_failed">Restore failed. Nothing was changed.</string>
     <string name="back_to_settings">Back to Settings</string>
     <string name="import_title">Import from Tempo</string>
