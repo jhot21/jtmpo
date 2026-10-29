@@ -40,6 +40,10 @@ interface SongDao {
     @Query("SELECT * FROM songs WHERE id = :id")
     suspend fun get(id: Long): SongEntity?
 
+    /** The row already holding [key], if any; used by the repository's duplicate guard. */
+    @Query("SELECT id FROM songs WHERE songKey = :key LIMIT 1")
+    suspend fun idForKey(key: String): Long?
+
     @Insert
     suspend fun insert(song: SongEntity): Long
 

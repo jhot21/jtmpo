@@ -14,6 +14,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -42,6 +43,15 @@ class RepositoryTest {
 
     private fun positions(setlistId: Long): List<Int> = runBlocking {
         repo.snapshot().entries.filter { it.setlistId == setlistId }.sortedBy { it.position }.map { it.position }
+    }
+
+    private suspend fun assertDuplicate(block: suspend () -> Unit) {
+        try {
+            block()
+            fail("expected DuplicateSongException")
+        } catch (_: DuplicateSongException) {
+            // expected
+        }
     }
 
     @Test
@@ -210,12 +220,37 @@ class RepositoryTest {
     }
 
     @Test
-    fun sameTitleDifferentArtistAreSeparateSongs() = runBlocking {
-        repo.createSong("Yesterday", "Beatles", r(100), null)
-        repo.createSong("Yesterday", "Other", r(90), null)
+    fun sameTitleDifferentArtistIsAllowed() = runBlocking {
+        repo.createSong("Yesterday", "Beta Band", r(100), null)
+        repo.createSong("Yesterday", "Other Band", r(90), null)
         val songs = repo.songs().first()
         assertEquals(2, songs.size)
-        assertEquals(setOf("Beatles", "Other"), songs.map { it.artist }.toSet())
+        assertEquals(setOf("Beta Band", "Other Band"), songs.map { it.artist }.toSet())
+    }
+
+    @Test
+    fun createSongRejectsSameTitleAndArtistIgnoringCase() = runBlocking {
+        repo.createSong("Gratitude", null, r(100), null)
+        assertDuplicate { repo.createSong(" gratitude ", "", r(100), null) }
+    }
+
+    @Test
+    fun updateSongRejectsCollisionButAllowsKeepingOwnKey() = runBlocking {
+        val a = repo.createSong("Tremor", "Aria Vane", r(100), null)
+        repo.createSong("Drift", "Aria Vane", r(120), null)
+        val song = repo.song(a)!!
+        assertDuplicate { repo.updateSong(song.copy(title = " drift ")) }
+        // the rejected update must not have written anything
+        assertEquals("Tremor", repo.song(a)!!.title)
+        // saving the same title and artist again (different case and spacing) keeps its own key
+        repo.updateSong(song.copy(title = "  TREMOR ", artist = "aria vane"))
+        assertEquals("  TREMOR ", repo.song(a)!!.title)
+    }
+
+    @Test
+    fun unicodePairIsDuplicate() = runBlocking {
+        repo.createSong("École", "Nyx Quartet", r(100), null)
+        assertDuplicate { repo.createSong("école", "NYX QUARTET", r(100), null) }
     }
 
     @Test
@@ -274,7 +309,7 @@ class RepositoryTest {
         val songId = db.songDao().insert(
             SongEntity(
                 title = "Bad", artist = null, tempo = 999, tsNum = 4, tsDen = 5,
-                patDen = 4, patDotted = false, notes = null, createdAt = 1,
+                patDen = 4, patDotted = false, notes = null, createdAt = 1, songKey = songKey("Bad", null),
             ),
         )
         val list = repo.createSetlist("Gig")

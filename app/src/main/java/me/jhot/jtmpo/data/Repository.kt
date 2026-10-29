@@ -116,6 +116,8 @@ private fun EntryRow.toEffective(): EffectiveSong {
 
 private fun String?.normalized() = this?.takeIf { it.isNotEmpty() }
 
+class DuplicateSongException : Exception("A song with this title and artist already exists")
+
 class Repository(
     private val db: JtmpoDatabase,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -127,6 +129,12 @@ class Repository(
     /** Runs [block] atomically; an exception rolls back every write made inside it. */
     suspend fun <T> runInTransaction(block: suspend () -> T): T = db.withTransaction { block() }
 
+    /**
+     * The one key computation for every writer, so the duplicate guard and the unique index can
+     * never disagree about what counts as the same song.
+     */
+    private fun keyFor(title: String, artist: String?): String = songKey(title, artist)
+
     // Songs
 
     fun songs(): Flow<List<Song>> = songDao.observeAll().map { rows -> rows.map { it.toSong() } }
@@ -134,21 +142,29 @@ class Repository(
     suspend fun song(id: Long): Song? = songDao.get(id)?.toSong()
 
     suspend fun createSong(title: String, artist: String?, rhythm: Rhythm, notes: String?): Long =
-        songDao.insert(
-            SongEntity(
-                title = title,
-                artist = artist,
-                tempo = rhythm.tempo,
-                tsNum = rhythm.timeSignature.numerator,
-                tsDen = rhythm.timeSignature.denominator,
-                patDen = rhythm.pattern.noteDenominator,
-                patDotted = rhythm.pattern.dotted,
-                notes = notes,
-                createdAt = clock(),
-            ),
-        )
+        db.withTransaction {
+            val key = keyFor(title, artist)
+            if (songDao.idForKey(key) != null) throw DuplicateSongException()
+            songDao.insert(
+                SongEntity(
+                    title = title,
+                    artist = artist,
+                    tempo = rhythm.tempo,
+                    tsNum = rhythm.timeSignature.numerator,
+                    tsDen = rhythm.timeSignature.denominator,
+                    patDen = rhythm.pattern.noteDenominator,
+                    patDotted = rhythm.pattern.dotted,
+                    notes = notes,
+                    createdAt = clock(),
+                    songKey = key,
+                ),
+            )
+        }
 
-    suspend fun updateSong(song: Song) {
+    suspend fun updateSong(song: Song) = db.withTransaction {
+        val key = keyFor(song.title, song.artist)
+        val colliding = songDao.idForKey(key)
+        if (colliding != null && colliding != song.id) throw DuplicateSongException()
         songDao.update(
             SongEntity(
                 id = song.id,
@@ -161,6 +177,7 @@ class Repository(
                 patDotted = song.rhythm.pattern.dotted,
                 notes = song.notes,
                 createdAt = song.createdAt,
+                songKey = key,
             ),
         )
     }
@@ -367,7 +384,7 @@ class Repository(
             snapshot.songs.map {
                 SongEntity(
                     it.id, it.title, it.artist, it.tempo, it.tsNum, it.tsDen,
-                    it.patDen, it.patDotted, it.notes, it.createdAt,
+                    it.patDen, it.patDotted, it.notes, it.createdAt, keyFor(it.title, it.artist),
                 )
             },
         )

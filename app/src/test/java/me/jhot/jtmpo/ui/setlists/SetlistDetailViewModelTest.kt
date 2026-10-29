@@ -95,8 +95,8 @@ class SetlistDetailViewModelTest {
         assertTrue(output.calls.isEmpty())
     }
 
-    private suspend fun threeSongs(): Long {
-        val ids = listOf(100, 120, 140).map { repo.createSong("S$it", null, r(it), null) }
+    private suspend fun threeSongs(prefix: String = "S"): Long {
+        val ids = listOf(100, 120, 140).map { repo.createSong("$prefix$it", null, r(it), null) }
         return setlistWith(*ids.toLongArray())
     }
 
@@ -177,7 +177,7 @@ class SetlistDetailViewModelTest {
     @Test
     fun tappingRowInADifferentSetlistWhilePausedLoadsItPaused() = runBlocking {
         val first = threeSongs()
-        val second = threeSongs()
+        val second = threeSongs("T")
         val vmA = vms.track(SetlistDetailViewModel(first, repo, playback))
         val vmB = vms.track(SetlistDetailViewModel(second, repo, playback))
         await(vmA, 3)

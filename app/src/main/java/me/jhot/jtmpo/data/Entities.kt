@@ -1,11 +1,15 @@
 package me.jhot.jtmpo.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "songs")
+@Entity(
+    tableName = "songs",
+    indices = [Index(value = ["songKey"], unique = true)],
+)
 data class SongEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
@@ -17,6 +21,7 @@ data class SongEntity(
     val patDotted: Boolean,
     val notes: String?,
     val createdAt: Long,
+    @ColumnInfo(defaultValue = "''") val songKey: String,
 )
 
 @Entity(tableName = "setlists")
