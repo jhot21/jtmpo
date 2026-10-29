@@ -2,7 +2,8 @@
 
 Android metronome (Kotlin, Jetpack Compose, Material3). Package `me.jhot.jtmpo`, minSdk 26, targetSdk 36.
 `README.md` describes the product. `docs/` has the on-device checklist (`acceptance.md`), the click sound (`digital-sound.md`),
-the Tempo import (`import-format.md`) and release steps (`releasing.md`).
+the Tempo import and the `.jtmpo` setlist format (`import-format.md`), the Planning Center userscript (`planning-center.md`)
+and release steps (`releasing.md`).
 
 ## Commands
 
@@ -15,14 +16,27 @@ mise exec -- task test      # JVM unit tests (extra args: -- --tests '*RhythmTes
 mise exec -- task check     # lint + unit tests; run before committing
 mise exec -- task build     # debug APK
 mise exec -- task install   # install the debug APK on the running emulator/device
+mise exec -- task test:scripts   # node tests for the Planning Center userscript + the release version script (needs shellcheck/actionlint for edits to those)
 ```
 
 Commits are Conventional Commits (`fix(sheets): ...`). Released versions come from the git tag (`docs/releasing.md`); `gradle.properties` only holds the default for local builds.
 
+## Releasing: do not do it unprompted
+
+Pushing a `v*` tag starts a signed build and publishes a GitHub release: `vX.Y.Z` (final, from `main`), or `vX.Y.Z-rc.N` /
+`vX.Y.Z-beta.N` (pre-release, from any branch). The job runs in the protected `release` environment, which holds the signing
+secrets and waits for the owner's approval. Agents must not push a tag, approve a deployment, or change the repository's rulesets,
+environments or secrets unless the user asked for exactly that in the conversation. Never print the keystore or its passwords; feed
+them to `gh secret set` on standard input. Version rules (`scripts/release-version.sh`) and the approval steps are in `docs/releasing.md`.
+
 ## Code layout
 
 `app/src/main/java/me/jhot/jtmpo/`: `audio`, `playback` (foreground-service click engine), `domain`, `data` (Room),
-`importer` (Tempo `.slist`/`.fzt`), `backup`, `ui/<screen>` (Compose screens and their ViewModels).
+`importer` (Tempo `.slist`/`.fzt`), `backup` (whole-library JSON, restore replaces everything), `share` (the `.jtmpo` setlist
+file: codec, export, matcher, atomic commit, format detection, share cache), `ui/<screen>` (Compose screens and their ViewModels).
+Songs are unique on a song key (`data/SongKey.kt`: trimmed, lowercased title + artist); use that one function for any title/artist
+comparison. Outside the app: `scripts/` (the Planning Center userscript that writes `.jtmpo`, `release-version.sh`) and `demo/`
+(a demo library plus a demo `.jtmpo`; leave `demo-library.json` alone, the README screenshots depend on it).
 Tests mirror this under `app/src/test`. Gesture and layout behaviour has no unit tests; verify it on the emulator.
 
 ## Emulator

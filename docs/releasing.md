@@ -87,7 +87,28 @@ The signing certificate's SHA-256 is pinned in `EXPECTED_CERT_SHA256` in the wor
 ever generate a new keystore, update it there, and note that installed copies can only update
 across a certificate change after an uninstall.
 
-### Repository secrets
+### Approving a release
+
+The release job runs in the `release` environment, which requires an approval before the job
+starts. After you push a tag the run shows "Waiting" until a reviewer approves it: open the run on
+GitHub and choose "Review deployments", or from a terminal:
+
+```bash
+gh run list --workflow Release --limit 1          # find the run id
+gh api repos/jhot21/jtmpo/actions/runs/<run id>/pending_deployments   # the environment id
+gh api repos/jhot21/jtmpo/actions/runs/<run id>/pending_deployments --method POST \
+  -F 'environment_ids[]=<environment id>' -f state=approved -f comment='ok'
+```
+
+Every release run needs this, finals and pre-releases alike. Agents and scripts must not approve
+a release on their own: the approval is the human check that a signed build was meant to happen.
+
+### Release environment
+
+The signing secrets are stored as secrets of the `release` environment, not of the repository, so
+a job that doesn't run in that environment can't read them. That matters because a tag can point
+at any commit and a commit can change `release.yml`: dropping `environment: release` from a
+malicious copy of the workflow only leaves it without the keys.
 
 | Secret | Value |
 | --- | --- |
@@ -95,3 +116,25 @@ across a certificate change after an uninstall.
 | `RELEASE_KEYSTORE_PASSWORD` | the store password |
 | `RELEASE_KEY_ALIAS` | the key alias (`jtmpo`) |
 | `RELEASE_KEY_PASSWORD` | the key password |
+
+The environment's settings: the owner (`jhot21`) is the required reviewer; self-review is allowed
+because the repository has one maintainer; administrators can't bypass the approval; and it only
+deploys from tags matching `v*`. A repository ruleset ("release tags") also stops anyone but the
+repository admin from creating, moving or deleting `v*` tags. Both live in GitHub's settings, not
+in this repo. To recreate the environment:
+
+```bash
+gh api repos/jhot21/jtmpo/environments/release --method PUT --input - <<EOF
+{ "prevent_self_review": false, "can_admins_bypass": false,
+  "reviewers": [ { "type": "User", "id": $(gh api users/jhot21 --jq .id) } ],
+  "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true } }
+EOF
+gh api repos/jhot21/jtmpo/environments/release/deployment-branch-policies \
+  --method POST -f name='v*' -f type=tag
+```
+
+Then set the four secrets with `gh secret set <NAME> --env release`, feeding each value on
+standard input (for example `base64 < jtmpo-release-key.jks | tr -d '\n' | gh secret set
+RELEASE_KEYSTORE_BASE64 --env release`), and check the keystore's certificate against
+`EXPECTED_CERT_SHA256` first. To rotate a password or the keystore, set the secret again the same
+way.
