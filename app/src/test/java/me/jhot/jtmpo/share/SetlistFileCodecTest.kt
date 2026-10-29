@@ -154,4 +154,60 @@ class SetlistFileCodecTest {
         val numberForString = """{"type":"jtmpo-setlist","version":1,"name":5,"songs":[],"entries":[]}"""
         assertTrue(failure(numberForString) != null)
     }
+
+    private fun manySongs(n: Int) = (1..n).map { song(it.toLong(), "Song $it") }
+
+    private fun assertInvalid(text: String, mention: String) {
+        val e = failure(text)
+        assertTrue("expected Invalid but was $e", e is SetlistFileException.Invalid)
+        assertTrue("message '${e?.message}' should mention $mention", e?.message?.contains(mention) == true)
+    }
+
+    @Test
+    fun rejectsTooManySongs() {
+        assertInvalid(file(manySongs(2001), listOf(entry(1))), "2000 songs")
+    }
+
+    @Test
+    fun acceptsExactlyMaxSongs() {
+        val decoded = SetlistFileCodec.decode(file(manySongs(2000), (1..2000).map { entry(it.toLong()) })).getOrThrow()
+        assertEquals(2000, decoded.songs.size)
+    }
+
+    @Test
+    fun rejectsTooManyEntries() {
+        assertInvalid(file(listOf(song(1, "A")), List(5001) { entry(1) }), "5000 entries")
+        val ok = SetlistFileCodec.decode(file(listOf(song(1, "A")), List(5000) { entry(1) })).getOrThrow()
+        assertEquals(5000, ok.entries.size)
+    }
+
+    @Test
+    fun rejectsAnOverlongTitle() {
+        assertInvalid(file(listOf(song(1, "t".repeat(501))), listOf(entry(1))), "500")
+    }
+
+    @Test
+    fun acceptsA500CharTitle() {
+        val decoded = SetlistFileCodec.decode(file(listOf(song(1, "t".repeat(500))), listOf(entry(1)))).getOrThrow()
+        assertEquals(500, decoded.songs.single().title.length)
+        // Measured after trimming.
+        val padded = file(listOf(song(1, " " + "t".repeat(500) + " ")), listOf(entry(1)))
+        assertTrue(SetlistFileCodec.decode(padded).isSuccess)
+    }
+
+    @Test
+    fun rejectsOverlongNotes() {
+        val songNotes = file(listOf(song(1, "A").replace("\"notes\":null", "\"notes\":\"${"n".repeat(10_001)}\"")), listOf(entry(1)))
+        assertInvalid(songNotes, "10000")
+        val entryNotes = file(listOf(song(1, "A")), listOf(entry(1).replace("\"notes\":null", "\"notes\":\"${"n".repeat(10_001)}\"")))
+        assertInvalid(entryNotes, "10000")
+        val okNotes = file(listOf(song(1, "A").replace("\"notes\":null", "\"notes\":\"${"n".repeat(10_000)}\"")), listOf(entry(1)))
+        assertTrue(SetlistFileCodec.decode(okNotes).isSuccess)
+    }
+
+    @Test
+    fun rejectsAnOverlongArtistAndName() {
+        assertInvalid(file(listOf(song(1, "A", artist = "a".repeat(501))), listOf(entry(1))), "500")
+        assertInvalid(file(listOf(song(1, "A")), listOf(entry(1)), name = "n".repeat(501)), "500")
+    }
 }

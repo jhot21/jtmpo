@@ -66,6 +66,12 @@ object SetlistFileCodec {
     const val VERSION = 1
     private const val DEFAULT_NAME = "Shared setlist"
 
+    // The byte cap alone does not bound how many objects a file decodes to, so cap the contents too.
+    const val MAX_SONGS = 2_000
+    const val MAX_ENTRIES = 5_000
+    const val MAX_TEXT = 500
+    const val MAX_NOTES = 10_000
+
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     fun encode(setlist: SharedSetlist): String = json.encodeToString(
@@ -114,6 +120,16 @@ object SetlistFileCodec {
 
         val file = json.decodeFromJsonElement(SetlistFile.serializer(), root)
         fun fail(message: String): Nothing = throw SetlistFileException.Invalid(message)
+
+        if (file.songs.size > MAX_SONGS) fail("A .jtmpo file can hold at most $MAX_SONGS songs")
+        if (file.entries.size > MAX_ENTRIES) fail("A .jtmpo file can hold at most $MAX_ENTRIES entries")
+        if (file.name.trim().length > MAX_TEXT) fail("A setlist name can be at most $MAX_TEXT characters")
+        if (file.songs.any { it.title.trim().length > MAX_TEXT || (it.artist?.trim()?.length ?: 0) > MAX_TEXT }) {
+            fail("A song title or artist can be at most $MAX_TEXT characters")
+        }
+        if (file.songs.any { (it.notes?.length ?: 0) > MAX_NOTES } || file.entries.any { (it.notes?.length ?: 0) > MAX_NOTES }) {
+            fail("Notes can be at most $MAX_NOTES characters")
+        }
 
         if (file.songs.any { it.title.isBlank() }) fail("Song without a title")
         if (file.songs.map { it.id }.toSet().size != file.songs.size) fail("Duplicate song id")
