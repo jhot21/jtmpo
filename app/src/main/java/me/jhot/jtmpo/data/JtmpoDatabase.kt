@@ -8,7 +8,7 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [SongEntity::class, SetlistEntity::class, EntryEntity::class],
     version = 1,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class JtmpoDatabase : RoomDatabase() {
     abstract fun songDao(): SongDao
