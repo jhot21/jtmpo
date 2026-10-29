@@ -36,9 +36,10 @@ tasks:
       - ./gradlew testDebugUnitTest {{.CLI_ARGS}}
 
   test:scripts:
-    desc: Run the Planning Center userscript tests
+    desc: Run the Planning Center userscript and release-version script tests
     cmds:
       - node --test scripts/pco-slist.test.js
+      - bash scripts/release-version.test.sh
 
   install:
     desc: Install the debug APK on the connected device
