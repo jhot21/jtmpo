@@ -261,4 +261,16 @@ class SetlistDetailViewModelTest {
         withTimeout(5_000) { vm.entries.first { l -> l.map { it.title } == listOf("B", "C", "A") } }
         Unit
     }
+
+    @Test
+    fun shareJsonIsNullWhenEmptyAndDecodesWhenNot() = runBlocking {
+        val empty = repo.createSetlist("Empty")
+        assertNull(vms.track(SetlistDetailViewModel(empty, repo, playback)).shareJson(empty))
+        val song = repo.createSong("Song One", null, r(100), null)
+        val id = setlistWith(song)
+        val vm = vms.track(SetlistDetailViewModel(id, repo, playback))
+        val (name, json) = vm.shareJson(id)!!
+        assertEquals("Gig", name)
+        assertEquals("Song One", me.jhot.jtmpo.share.SetlistFileCodec.decode(json).getOrThrow().songs.single().title)
+    }
 }

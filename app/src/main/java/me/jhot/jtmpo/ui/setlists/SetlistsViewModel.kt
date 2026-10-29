@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.jhot.jtmpo.data.RemovedSetlist
 import me.jhot.jtmpo.data.Repository
+import me.jhot.jtmpo.share.SetlistFileCodec
+import me.jhot.jtmpo.share.exportSetlist
 import me.jhot.jtmpo.data.SetlistSummary
 
 enum class SetlistSort { RECENT, AZ }
@@ -41,6 +43,12 @@ class SetlistsViewModel(private val repository: Repository) : ViewModel() {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch { repository.renameSetlist(id, trimmed) }
+    }
+
+    /** The setlist's name and `.jtmpo` JSON, or null when it is missing or empty. */
+    suspend fun shareJson(setlistId: Long): Pair<String, String>? {
+        val shared = repository.exportSetlist(setlistId) ?: return null
+        return shared.name to SetlistFileCodec.encode(shared)
     }
 
     private val _undo = MutableStateFlow<SetlistUndoOffer?>(null)

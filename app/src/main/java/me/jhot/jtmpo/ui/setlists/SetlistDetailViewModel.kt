@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.jhot.jtmpo.data.RemovedEntry
 import me.jhot.jtmpo.data.Repository
+import me.jhot.jtmpo.share.SetlistFileCodec
+import me.jhot.jtmpo.share.exportSetlist
 import me.jhot.jtmpo.data.Song
 import me.jhot.jtmpo.domain.EffectiveSong
 import me.jhot.jtmpo.playback.PlaybackController
@@ -127,6 +129,12 @@ class SetlistDetailViewModel(
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch { repository.renameSetlist(setlistId, trimmed) }
+    }
+
+    /** The setlist's name and `.jtmpo` JSON, or null when it is missing or empty. */
+    suspend fun shareJson(setlistId: Long): Pair<String, String>? {
+        val shared = repository.exportSetlist(setlistId) ?: return null
+        return shared.name to SetlistFileCodec.encode(shared)
     }
 
     class Factory(

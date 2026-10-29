@@ -38,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -52,6 +53,7 @@ import me.jhot.jtmpo.AppGraph
 import me.jhot.jtmpo.R
 import me.jhot.jtmpo.domain.ClickPattern
 import me.jhot.jtmpo.domain.EffectiveSong
+import me.jhot.jtmpo.share.shareSetlistFile
 import me.jhot.jtmpo.ui.components.EntryRowContent
 import me.jhot.jtmpo.ui.components.JtmpoSnackbarHost
 import me.jhot.jtmpo.ui.edit.EditSongSheet
@@ -85,6 +87,7 @@ fun SetlistDetailScreen(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
+    val context = LocalContext.current
     var editingEntry by remember { mutableStateOf<EffectiveSong?>(null) }
     // Bumped on every open so each sheet gets a fresh view model, never a finished or stale one.
     var editOpens by remember { mutableIntStateOf(0) }
@@ -143,6 +146,14 @@ fun SetlistDetailScreen(
                         Text("⋮", color = if (menuOpen) Accent else TextSecondary)
                     }
                     DropdownMenu(menuOpen, { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Share") },
+                            enabled = entries.isNotEmpty(),
+                            onClick = {
+                                menuOpen = false
+                                scope.launch { vm.shareJson(setlistId)?.let { (n, json) -> context.shareSetlistFile(n, json) } }
+                            },
+                        )
                         DropdownMenuItem(text = { Text("Rename") }, onClick = { menuOpen = false; renaming = true })
                         DropdownMenuItem(text = { Text("Delete") }, onClick = { menuOpen = false; deleting = true })
                     }

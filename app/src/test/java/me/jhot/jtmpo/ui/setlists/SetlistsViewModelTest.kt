@@ -111,4 +111,26 @@ class SetlistsViewModelTest {
         assertNull(vm.undo.value)
         assertEquals(emptyList<Any>(), repo.setlists().first())
     }
+
+    @Test
+    fun shareJsonIsNullForEmptySetlist() = runBlocking {
+        val id = repo.createSetlist("Setlist A")
+        val vm = vms.track(SetlistsViewModel(repo))
+        assertNull(vm.shareJson(id))
+        assertNull(vm.shareJson(id + 99))
+    }
+
+    @Test
+    fun shareJsonDecodesBackToTheSetlist() = runBlocking {
+        val songs = listOf(repo.createSong("Song One", null, r(100), null), repo.createSong("Song Two", null, r(120), null))
+        val id = repo.createSetlist("Setlist A")
+        repo.addSongs(id, songs)
+        val vm = vms.track(SetlistsViewModel(repo))
+        val (name, json) = vm.shareJson(id)!!
+        assertEquals("Setlist A", name)
+        val decoded = me.jhot.jtmpo.share.SetlistFileCodec.decode(json).getOrThrow()
+        assertEquals("Setlist A", decoded.name)
+        assertEquals(listOf("Song One", "Song Two"), decoded.songs.map { it.title })
+        assertEquals(2, decoded.entries.size)
+    }
 }

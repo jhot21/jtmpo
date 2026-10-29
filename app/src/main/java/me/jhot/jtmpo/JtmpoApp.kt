@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import me.jhot.jtmpo.playback.PlaybackService
+import me.jhot.jtmpo.share.pruneShareFiles
 
 class JtmpoApp : Application() {
     companion object {
@@ -23,6 +24,7 @@ class JtmpoApp : Application() {
         super.onCreate()
         graph = AppGraph(this)
         createPlaybackChannel()
+        pruneShareFiles(cacheDir)
         // The service goes foreground whenever playback starts and stops itself once nothing is loaded.
         graph.playback.state
             .map { it.isPlaying }

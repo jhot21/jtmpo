@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,7 +45,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import me.jhot.jtmpo.AppGraph
 import me.jhot.jtmpo.R
+import kotlinx.coroutines.launch
 import me.jhot.jtmpo.data.SetlistSummary
+import me.jhot.jtmpo.share.shareSetlistFile
 import me.jhot.jtmpo.ui.components.JtmpoSnackbarHost
 import me.jhot.jtmpo.ui.components.SetlistCover
 import me.jhot.jtmpo.ui.theme.Accent
@@ -66,6 +70,8 @@ fun SetlistsScreen(graph: AppGraph, onOpen: (Long) -> Unit, modifier: Modifier =
     val playback by graph.playback.state.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<Dialog?>(null) }
     val snackbar = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // Also shown after a delete from the setlist's own screen, which deletes through this view model.
     LaunchedEffect(undo) {
@@ -110,6 +116,9 @@ fun SetlistsScreen(graph: AppGraph, onOpen: (Long) -> Unit, modifier: Modifier =
                         setlist,
                         showLastPlayed = ui.sort == SetlistSort.RECENT,
                         onOpen = { onOpen(setlist.id) },
+                        onShare = {
+                            scope.launch { vm.shareJson(setlist.id)?.let { (name, json) -> context.shareSetlistFile(name, json) } }
+                        },
                         onRename = { dialog = Dialog.Rename(setlist) },
                         onDelete = { dialog = Dialog.Delete(setlist) },
                     )
@@ -164,6 +173,7 @@ private fun SetlistRow(
     setlist: SetlistSummary,
     showLastPlayed: Boolean,
     onOpen: () -> Unit,
+    onShare: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -193,6 +203,11 @@ private fun SetlistRow(
                 Text("⋮", color = if (menuOpen) Accent else TextSecondary)
             }
             DropdownMenu(menuOpen, { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("Share") },
+                    enabled = setlist.songCount > 0,
+                    onClick = { menuOpen = false; onShare() },
+                )
                 DropdownMenuItem(text = { Text("Rename") }, onClick = { menuOpen = false; onRename() })
                 DropdownMenuItem(text = { Text("Delete") }, onClick = { menuOpen = false; onDelete() })
             }
