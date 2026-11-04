@@ -17,9 +17,6 @@ class PracticeRamp(settings: PracticeSettings = PracticeSettings()) {
     var bar: Int = 1
         private set
 
-    var begun: Boolean = false
-        private set
-
     /** Tempo the next step reaches, or null with the ramp off or at a limit. */
     val nextTempo: Int?
         get() {
@@ -32,7 +29,6 @@ class PracticeRamp(settings: PracticeSettings = PracticeSettings()) {
 
     /** The next click is the downbeat of the current bar; the bar count is kept. */
     fun play() {
-        begun = true
         skipAdvance = true
     }
 
@@ -64,21 +60,19 @@ class PracticeRamp(settings: PracticeSettings = PracticeSettings()) {
         bar = 1
         clickInBar = 0
         skipAdvance = false
-        begun = false
     }
 
     /**
-     * Mid-ramp (begun, ramp on) this moves the live tempo and leaves the interval alone;
-     * otherwise it moves the start tempo, since the session sits at its start.
+     * Once the ramp has moved the tempo off the start tempo this moves the live tempo and leaves
+     * the interval alone. Before that, and with the ramp off, the shown tempo is the start tempo,
+     * so it moves both.
      */
     fun nudge(tempo: Int) {
         val next = clamp(tempo)
-        if (begun && settings.direction != RampDirection.Off) {
-            this.tempo = next
-        } else {
+        if (settings.direction == RampDirection.Off || this.tempo == settings.startTempo) {
             settings = settings.copy(startTempo = next)
-            this.tempo = next
         }
+        this.tempo = next
     }
 
     /**
@@ -94,6 +88,8 @@ class PracticeRamp(settings: PracticeSettings = PracticeSettings()) {
             this.settings.direction == RampDirection.Off && next.direction != RampDirection.Off
         this.settings = next
         tempo = clamp(tempo)
+        // With the ramp off the shown tempo is the start tempo: there is nothing to reset to.
+        if (next.direction == RampDirection.Off) this.settings = next.copy(startTempo = tempo)
         if (gridChanged || rampStarted) {
             bar = 1
             clickInBar = 0

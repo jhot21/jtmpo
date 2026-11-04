@@ -28,7 +28,6 @@ class PracticeRampTest {
         assertEquals(60, ramp.tempo)
         assertEquals(1, ramp.bar)
         assertEquals(65, ramp.nextTempo)
-        assertFalse(ramp.begun)
     }
 
     @Test
@@ -161,7 +160,6 @@ class PracticeRampTest {
         ramp.reset()
         assertEquals(60, ramp.tempo)
         assertEquals(1, ramp.bar)
-        assertFalse(ramp.begun)
 
         ramp.clicks(1)
         assertEquals(1, ramp.bar)
@@ -212,19 +210,45 @@ class PracticeRampTest {
     }
 
     @Test
-    fun nudgeAfterPlayingChangesOnlyTheCurrentTempo() {
+    fun nudgeAfterAStepChangesOnlyTheCurrentTempo() {
         val ramp = ramp()
-        ramp.clicks(6)
+        ramp.clicks(33)
+        assertEquals(65, ramp.tempo)
         val bar = ramp.bar
-        assertTrue(ramp.begun)
 
         ramp.nudge(77)
         assertEquals(77, ramp.tempo)
         assertEquals(60, ramp.settings.startTempo)
         assertEquals(bar, ramp.bar)
 
-        ramp.clicks(27)
+        ramp.clicks(32)
         assertEquals(82, ramp.tempo)
+    }
+
+    @Test
+    fun nudgeBeforeTheFirstStepMovesTheStartTempoEvenAfterPlaying() {
+        val ramp = ramp()
+        ramp.clicks(6)
+
+        ramp.nudge(77)
+
+        assertEquals(77, ramp.tempo)
+        assertEquals(77, ramp.settings.startTempo)
+    }
+
+    @Test
+    fun turningTheRampOffAdoptsTheShownTempoAsTheStartTempo() {
+        val ramp = ramp()
+        ramp.clicks(33)
+        assertEquals(65, ramp.tempo)
+
+        ramp.apply(ramp.settings.copy(direction = RampDirection.Off))
+        assertEquals(65, ramp.settings.startTempo)
+
+        ramp.nudge(90)
+        assertEquals(90, ramp.settings.startTempo)
+        ramp.reset()
+        assertEquals(90, ramp.tempo)
     }
 
     @Test
@@ -248,7 +272,7 @@ class PracticeRampTest {
     @Test
     fun nudgeAfterResetMovesTheStartTempoAgain() {
         val ramp = ramp()
-        ramp.clicks(6)
+        ramp.clicks(33)
         ramp.nudge(100)
         assertEquals(60, ramp.settings.startTempo)
 

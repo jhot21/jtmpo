@@ -131,9 +131,32 @@ class PracticeViewModelTest {
         assertFalse(vm.ui.value.canReset)
 
         // A nudge mid-ramp moves the live tempo only, so Reset has something to undo again.
-        output.clicks(1)
+        output.clicks(9)
         vm.nudgeTempo(120)
         assertTrue(vm.ui.value.canReset)
+
+        // With the ramp off the shown tempo is the start tempo: nothing to reset to.
+        vm.setDirection(RampDirection.Off)
+        assertFalse(vm.ui.value.canReset)
+        vm.nudgeTempo(130)
+        assertFalse(vm.ui.value.canReset)
+    }
+
+    @Test
+    fun changingTheTempoBeforeTheRampHasSteppedNeverOffersReset() {
+        rampUp(everyBars = 2)
+        vm.nudgeTempo(100)
+        assertFalse(vm.ui.value.canReset)
+
+        vm.togglePlay()
+        output.clicks(3)
+        vm.nudgeTempo(110)
+        assertFalse(vm.ui.value.canReset)
+
+        vm.togglePlay()
+        vm.nudgeTempo(120)
+        assertEquals(120, vm.ui.value.tempo)
+        assertFalse(vm.ui.value.canReset)
     }
 
     @Test

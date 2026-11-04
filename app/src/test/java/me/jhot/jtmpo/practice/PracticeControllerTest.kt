@@ -311,9 +311,20 @@ class PracticeControllerTest {
         assertEquals(listOf("cpm:90", "start"), out.calls)
         out.clear()
 
+        // Before the first step the shown tempo is still the start tempo, so a nudge moves both.
+        practice.nudgeTempo(92)
+        assertEquals(92, practice.state.value.settings.startTempo)
+        assertEquals(listOf("cpm:92"), out.calls)
+        out.clear()
+
+        // Eight bars of four clicks, then the downbeat steps the tempo.
+        out.clicks(33)
+        assertEquals(97, practice.state.value.tempo)
+        out.clear()
+
         practice.nudgeTempo(100)
         assertEquals(100, practice.state.value.tempo)
-        assertEquals(90, practice.state.value.settings.startTempo)
+        assertEquals(92, practice.state.value.settings.startTempo)
         assertEquals(listOf("cpm:100"), out.calls)
         out.clear()
 
@@ -321,11 +332,11 @@ class PracticeControllerTest {
         out.clear()
         practice.nudgeTempo(95)
         assertEquals(95, practice.state.value.tempo)
-        assertEquals(90, practice.state.value.settings.startTempo)
+        assertEquals(92, practice.state.value.settings.startTempo)
         assertTrue(out.calls.isEmpty())
 
         practice.reset()
-        assertEquals(90, practice.state.value.tempo)
+        assertEquals(92, practice.state.value.tempo)
         assertEquals(1, practice.state.value.bar)
     }
 

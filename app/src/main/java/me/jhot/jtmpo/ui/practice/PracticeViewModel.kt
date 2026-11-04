@@ -45,7 +45,7 @@ class PracticeViewModel(private val practice: PracticeController) : ViewModel() 
 
     fun reset() = practice.reset()
 
-    /** The tempo card: the live tempo mid-ramp, the start tempo while the session has not begun. */
+    /** The tempo card: the live tempo mid-ramp, the start tempo until the ramp has stepped. */
     fun nudgeTempo(tempo: Int) = practice.nudgeTempo(tempo)
 
     /** The new signature's grid, with the current subdivision carried over where it still fits. */
@@ -85,7 +85,7 @@ private fun PracticeState.toUi(): PracticeUi {
         // The ramp reports no next tempo when it is off and when a step would not move it: at a limit.
         atLimit = rampOn && nextTempo == null,
         isPlaying = isPlaying,
-        canReset = tempo != settings.startTempo,
+        canReset = rampOn && tempo != settings.startTempo,
         settings = settings,
         patterns = patternsFor(settings.timeSignature),
     )
