@@ -85,6 +85,12 @@ class AudioTrackOutput internal constructor(
     /** Called on the main thread when the output device goes away or the track fails to start or dies. */
     @Volatile var onOutputLost: (() -> Unit)? = null
 
+    /**
+     * Called on the audio thread as each click starts. Only a null check and a call, so reporting
+     * a click allocates nothing.
+     */
+    @Volatile override var onClickStart: (() -> Unit)? = null
+
     private val _pulses = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     /** One emission per audible click (thinned to 12/s), timed to when it reaches the output. */
@@ -189,12 +195,15 @@ class AudioTrackOutput internal constructor(
         private var timestampValid = false
         private var lastTimestampQuery = 0L
         private var framesWritten = 0L
-        private val onClickStart = ClickListener { i -> scheduler.onClick(framesWritten + i) }
+        private val clickListener = ClickListener { i ->
+            scheduler.onClick(framesWritten + i)
+            onClickStart?.invoke()
+        }
 
         override fun run() {
             Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
             while (generation.isCurrent(token)) {
-                renderer.render(buffer, BUFFER_FRAMES, onClickStart)
+                renderer.render(buffer, BUFFER_FRAMES, clickListener)
                 var offset = 0
                 while (offset < BUFFER_FRAMES && generation.isCurrent(token)) {
                     val n = track.write(buffer, offset, BUFFER_FRAMES - offset)

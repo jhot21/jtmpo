@@ -18,6 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowLog
+import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(RobolectricTestRunner::class)
 class AudioTrackOutputStartTest {
@@ -79,6 +80,27 @@ class AudioTrackOutputStartTest {
         assertTrue("stays playing once the track starts", playback.state.value.isPlaying)
         playback.pause()
         assertTrue(tracks.single().released)
+    }
+
+    @Test
+    fun clickCallbackFiresForEachClickStart() {
+        // A stream write returns as soon as it is buffered; echoing the length keeps the writer
+        // moving at the rate the renderer fills buffers.
+        val track = object : FakeTrack() {
+            override fun write(audioData: ShortArray, offsetInShorts: Int, sizeInShorts: Int) = sizeInShorts
+        }
+        val output = AudioTrackOutput(context, ClickRenderer(ShortArray(10) { 1000 }, 48000)) { track }
+        val clicks = AtomicInteger()
+        output.onClickStart = { clicks.incrementAndGet() }
+        output.setClicksPerMinute(600.0) // 10 a second
+        output.start()
+        try {
+            val deadline = System.currentTimeMillis() + 2000
+            while (clicks.get() < 3 && System.currentTimeMillis() < deadline) Thread.sleep(10)
+        } finally {
+            output.stop()
+        }
+        assertTrue("clicks=${clicks.get()}", clicks.get() >= 3)
     }
 
     @Test
