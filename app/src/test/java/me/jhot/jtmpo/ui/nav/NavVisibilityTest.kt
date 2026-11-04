@@ -12,7 +12,7 @@ class NavVisibilityTest {
 
     @Test
     fun shownOnTopLevelAndDetailRoutes() {
-        for (route in listOf("setlists", "library", "settings", "setlist/{id}")) {
+        for (route in listOf("setlists", "library", "practice", "settings", "setlist/{id}")) {
             assertTrue(route, showsBottomNav(route))
         }
     }

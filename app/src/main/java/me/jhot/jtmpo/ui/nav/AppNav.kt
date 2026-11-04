@@ -35,6 +35,7 @@ import me.jhot.jtmpo.AppGraph
 import me.jhot.jtmpo.R
 import me.jhot.jtmpo.ui.library.LibraryScreen
 import me.jhot.jtmpo.ui.player.PlayerScreen
+import me.jhot.jtmpo.ui.practice.PracticeScreen
 import me.jhot.jtmpo.ui.settings.ImportScreen
 import me.jhot.jtmpo.ui.settings.SettingsScreen
 import me.jhot.jtmpo.ui.setlists.SetlistDetailScreen
@@ -47,6 +48,7 @@ import me.jhot.jtmpo.ui.theme.TextSecondary
 object Routes {
     const val SETLISTS = "setlists"
     const val LIBRARY = "library"
+    const val PRACTICE = "practice"
     const val SETTINGS = "settings"
     const val SETLIST_PATTERN = "setlist/{id}"
     const val PLAYER = "player"
@@ -62,6 +64,7 @@ fun showsBottomNav(route: String?): Boolean = route != Routes.PLAYER
 fun tabOf(route: String?): String? = when (route) {
     Routes.SETLISTS, Routes.SETLIST_PATTERN -> Routes.SETLISTS
     Routes.LIBRARY -> Routes.LIBRARY
+    Routes.PRACTICE -> Routes.PRACTICE
     Routes.SETTINGS, Routes.IMPORT -> Routes.SETTINGS
     else -> null
 }
@@ -73,11 +76,11 @@ sealed interface TabBack {
 }
 
 /**
- * Setlists and Library are both top level, so Back leaves the app from either. Settings is a side trip:
- * Back returns to the tab it was opened from.
+ * Setlists, Library and Practice are all top level, so Back leaves the app from any of them. Settings is a
+ * side trip: Back returns to the tab it was opened from.
  */
 fun tabBack(route: String?, settingsOrigin: String): TabBack = when (route) {
-    Routes.LIBRARY -> TabBack.LeaveApp
+    Routes.LIBRARY, Routes.PRACTICE -> TabBack.LeaveApp
     Routes.SETTINGS -> TabBack.SwitchTo(settingsOrigin)
     else -> TabBack.Default
 }
@@ -87,6 +90,7 @@ private data class TopLevel(val route: String, val labelRes: Int, val iconRes: I
 private val topLevel = listOf(
     TopLevel(Routes.SETLISTS, R.string.nav_setlists, R.drawable.ic_nav_setlists),
     TopLevel(Routes.LIBRARY, R.string.nav_library, R.drawable.ic_nav_library),
+    TopLevel(Routes.PRACTICE, R.string.nav_practice, R.drawable.ic_nav_practice),
     TopLevel(Routes.SETTINGS, R.string.nav_settings, R.drawable.ic_nav_settings),
 )
 
@@ -152,6 +156,7 @@ fun AppNav(graph: AppGraph) {
         ) {
             composable(Routes.SETLISTS) { SetlistsScreen(graph, onOpen = { nav.navigate(Routes.setlist(it)) }) }
             composable(Routes.LIBRARY) { LibraryScreen(graph) }
+            composable(Routes.PRACTICE) { PracticeScreen(graph) }
             composable(Routes.SETTINGS) { SettingsScreen(graph, onImportFzt = { nav.navigate(Routes.IMPORT) }) }
             composable(Routes.IMPORT) { ImportScreen(graph, onBack = { nav.popBackStack() }) }
             composable(
