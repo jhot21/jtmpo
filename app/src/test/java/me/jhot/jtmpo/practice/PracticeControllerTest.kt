@@ -18,6 +18,9 @@ import org.junit.Test
 
 private class RecordingOutput : ClickOutput {
     val calls = CopyOnWriteArrayList<String>()
+
+    /** The last rate pushed, untruncated: the click must play exactly what the state shows. */
+    @Volatile var lastRate: Double = Double.NaN
     private var listener: (() -> Unit)? = null
 
     override var onClickStart: (() -> Unit)?
@@ -26,7 +29,10 @@ private class RecordingOutput : ClickOutput {
 
     override fun start() { calls += "start" }
     override fun stop() { calls += "stop" }
-    override fun setClicksPerMinute(cpm: Double) { calls += "cpm:${cpm.toInt()}" }
+    override fun setClicksPerMinute(cpm: Double) {
+        lastRate = cpm
+        calls += "cpm:${cpm.toInt()}"
+    }
 
     /** One click the way the engine reports it, on the caller's thread. */
     fun click() {
@@ -246,7 +252,8 @@ class PracticeControllerTest {
 
         practice.reset()
 
-        assertEquals(listOf("stop", "cpm:60", "start"), out.calls)
+        // The rate goes in under the lock, before the restart, so the click and the bar agree.
+        assertEquals(listOf("cpm:60", "stop", "start"), out.calls)
         assertEquals(60, practice.state.value.tempo)
         assertEquals(1, practice.state.value.bar)
         assertTrue(practice.state.value.isPlaying)
@@ -344,11 +351,16 @@ class PracticeControllerTest {
         clicking.join(5_000)
 
         assertFalse("the click thread did not finish", clicking.isAlive)
-        val tempo = practice.state.value.tempo
+        val state = practice.state.value
+        val tempo = state.tempo
         assertTrue(
             "tempo $tempo is neither the last nudge nor a later step from it",
             tempo >= 100 && (tempo - 100) % 5 == 0,
         )
+        // The snapshot and the pushed rate are serialised by the lock, so the click cannot be left
+        // playing a rate from before the last publish.
+        val shown = Rhythm(tempo, state.settings.timeSignature, state.settings.pattern).clicksPerMinute()
+        assertEquals(shown, out.lastRate, 0.0)
     }
 
     @Test

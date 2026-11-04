@@ -91,14 +91,20 @@ class PracticeRamp(settings: PracticeSettings = PracticeSettings()) {
         this.tempo = if (begun) clamp(this.tempo) else next
     }
 
-    /** A changed signature or pattern restarts the bar count; anything else keeps it. */
+    /**
+     * A changed signature or pattern restarts the bar count, and so does turning the ramp on from
+     * Off: the count was frozen while the grid ran on, so the next click is re-anchored as a
+     * downbeat. Anything else keeps it.
+     */
     fun apply(settings: PracticeSettings) {
         val next = settings.sanitized()
         val gridChanged =
             next.timeSignature != this.settings.timeSignature || next.pattern != this.settings.pattern
+        val rampStarted =
+            this.settings.direction == RampDirection.Off && next.direction != RampDirection.Off
         this.settings = next
         tempo = clamp(tempo)
-        if (gridChanged) {
+        if (gridChanged || rampStarted) {
             bar = 1
             clickInBar = 0
             skipAdvance = true

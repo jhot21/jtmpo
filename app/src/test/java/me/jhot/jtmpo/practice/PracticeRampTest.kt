@@ -274,6 +274,54 @@ class PracticeRampTest {
     }
 
     @Test
+    fun turningTheRampBackOnReAnchorsTheNextClickAsADownbeat() {
+        val ramp = ramp()
+        ramp.clicks(6)
+        assertEquals(2, ramp.bar)
+
+        // Off freezes the count, so the click grid runs on without it.
+        ramp.apply(ramp.settings.copy(direction = RampDirection.Off))
+        ramp.clicks(10)
+        assertEquals(2, ramp.bar)
+        assertEquals(60, ramp.tempo)
+
+        ramp.apply(ramp.settings.copy(direction = RampDirection.Up))
+        assertEquals(1, ramp.bar)
+        assertEquals(60, ramp.tempo)
+
+        ramp.clicks(1)
+        assertEquals(1, ramp.bar)
+
+        ramp.clicks(4)
+        assertEquals(2, ramp.bar)
+        assertEquals(60, ramp.tempo)
+
+        // Bars 3 to 8: still no step, the re-anchored interval starts over.
+        ramp.clicks(27)
+        assertEquals(8, ramp.bar)
+        assertEquals(60, ramp.tempo)
+
+        assertTrue(ramp.onClick())
+        assertEquals(65, ramp.tempo)
+        assertEquals(1, ramp.bar)
+    }
+
+    @Test
+    fun switchingBetweenUpAndDownKeepsTheBarCount() {
+        val ramp = ramp()
+        ramp.clicks(6)
+        assertEquals(2, ramp.bar)
+
+        ramp.apply(ramp.settings.copy(direction = RampDirection.Down))
+        assertEquals(2, ramp.bar)
+
+        ramp.clicks(1)
+        assertEquals(2, ramp.bar)
+        ramp.clicks(4)
+        assertEquals(3, ramp.bar)
+    }
+
+    @Test
     fun oneClickPerBarStillSteps() {
         val ramp = ramp(
             PracticeSettings(

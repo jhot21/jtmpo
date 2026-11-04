@@ -1,6 +1,7 @@
 package me.jhot.jtmpo.practice
 
 import me.jhot.jtmpo.domain.ClickPattern
+import me.jhot.jtmpo.domain.SIGNATURE_DENOMINATORS
 import me.jhot.jtmpo.domain.TempoLimits
 import me.jhot.jtmpo.domain.TimeSignature
 import me.jhot.jtmpo.domain.patternsFor
@@ -26,7 +27,7 @@ data class PracticeSettings(
 ) {
     fun sanitized(): PracticeSettings {
         // A numerator of zero or less is no more usable than an unsupported denominator.
-        val ts = if (timeSignature.denominator in SUPPORTED_DENOMINATORS && timeSignature.numerator > 0) {
+        val ts = if (timeSignature.denominator in SIGNATURE_DENOMINATORS && timeSignature.numerator > 0) {
             timeSignature
         } else {
             DEFAULT_SIGNATURE
@@ -43,7 +44,6 @@ data class PracticeSettings(
     }
 }
 
-private val SUPPORTED_DENOMINATORS = listOf(2, 4, 8, 16)
 private val DEFAULT_SIGNATURE = TimeSignature(4, 4)
 
 /** Clicks the pattern puts in one bar of [ts], at least one. */

@@ -24,7 +24,8 @@ data class PracticeState(
  *
  * [lock] guards the ramp and the published [state], and is shared with the audio thread's click
  * callback. It is never held while calling [ClickOutput.start]/[stop] (stop() joins the audio
- * thread, which may be waiting for this lock) or into [PlaybackController].
+ * thread, which may be waiting for this lock) or into [PlaybackController]. The rate push is made
+ * under it, so the click cannot be left playing a rate older than the published snapshot.
  */
 class PracticeController(
     private val output: ClickOutput,
@@ -49,7 +50,7 @@ class PracticeController(
         // A no-op unless a song or an editor Preview is sounding.
         playback.pause()
         output.onClickStart = clickListener
-        val cpm = synchronized(lock) {
+        synchronized(lock) {
             acted = true
             engaged = true
             // A second play() during a session must not re-arm the ramp: the next click would be
@@ -59,9 +60,8 @@ class PracticeController(
                 ramp.play()
                 publish()
             }
-            rate()
+            output.setClicksPerMinute(rate())
         }
-        output.setClicksPerMinute(cpm)
         output.start()
     }
 
@@ -85,15 +85,19 @@ class PracticeController(
     }
 
     fun reset() {
-        val cpm = synchronized(lock) {
+        val playing = synchronized(lock) {
             acted = true
             ramp.reset()
             publish()
-            if (isPlaying) rate() else null
+            if (isPlaying) {
+                output.setClicksPerMinute(rate())
+                true
+            } else {
+                false
+            }
         }
-        if (cpm == null) return
+        if (!playing) return
         output.stop()
-        output.setClicksPerMinute(cpm)
         output.start()
     }
 
@@ -111,13 +115,12 @@ class PracticeController(
 
     /** The tempo control: moves the live tempo mid-ramp, else the start tempo too. */
     fun nudgeTempo(tempo: Int) {
-        val cpm = synchronized(lock) {
+        synchronized(lock) {
             acted = true
             ramp.nudge(tempo)
             publish()
-            if (isPlaying) rate() else null
+            if (isPlaying) output.setClicksPerMinute(rate())
         }
-        if (cpm != null) output.setClicksPerMinute(cpm)
     }
 
     /** The Start tempo row: never changes the live tempo once the session has begun. */
@@ -130,15 +133,14 @@ class PracticeController(
     }
 
     fun update(transform: (PracticeSettings) -> PracticeSettings) {
-        val cpm = synchronized(lock) {
+        synchronized(lock) {
             acted = true
             val before = rate()
             ramp.apply(transform(ramp.settings))
             publish()
             val after = rate()
-            if (isPlaying && after != before) after else null
+            if (isPlaying && after != before) output.setClicksPerMinute(after)
         }
-        if (cpm != null) output.setClicksPerMinute(cpm)
     }
 
     /** The stored settings at launch. Ignored once the player has acted, so it cannot undo one. */
@@ -152,18 +154,17 @@ class PracticeController(
     }
 
     /**
-     * One click start, on the audio thread. Takes the lock only to count the click and build the
-     * snapshot when something changed, then sets the rate outside it.
+     * One click start, on the audio thread. Takes the lock to count the click, build the snapshot
+     * and push the rate together, so the click and the UI cannot disagree.
      */
     private fun onOutputClick() {
-        val cpm = synchronized(lock) {
+        synchronized(lock) {
             // A click already in the writer when pause() stopped it must not move a paused ramp.
             if (!isPlaying) return
             if (!ramp.onClick()) return
             publish()
-            rate()
+            output.setClicksPerMinute(rate())
         }
-        output.setClicksPerMinute(cpm)
     }
 
     private fun rate(): Double =

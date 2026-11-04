@@ -260,6 +260,8 @@ private fun StepperRow(
     onMinus: () -> Unit,
     onPlus: () -> Unit,
 ) {
+    val minusLabel = stringResource(R.string.practice_decrease, label)
+    val plusLabel = stringResource(R.string.practice_increase, label)
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(
             label,
@@ -267,7 +269,11 @@ private fun StepperRow(
             color = if (enabled) MaterialTheme.colorScheme.onSurface else TextSecondary,
             style = MaterialTheme.typography.bodyLarge,
         )
-        FilledTonalIconButton(onMinus, Modifier.size(48.dp), enabled = enabled) {
+        FilledTonalIconButton(
+            onMinus,
+            Modifier.size(48.dp).semantics { contentDescription = minusLabel },
+            enabled = enabled,
+        ) {
             Text("\u2212", style = MaterialTheme.typography.titleMedium)
         }
         // The slot is always there, so -/+ line up whether or not the label carries the value.
@@ -278,7 +284,11 @@ private fun StepperRow(
             style = MaterialTheme.typography.titleMedium,
             color = if (enabled) MaterialTheme.colorScheme.onSurface else TextSecondary,
         )
-        FilledTonalIconButton(onPlus, Modifier.size(48.dp), enabled = enabled) {
+        FilledTonalIconButton(
+            onPlus,
+            Modifier.size(48.dp).semantics { contentDescription = plusLabel },
+            enabled = enabled,
+        ) {
             Text("+", style = MaterialTheme.typography.titleMedium)
         }
     }
