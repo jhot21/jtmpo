@@ -3,6 +3,7 @@ package me.jhot.jtmpo.data
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -56,6 +57,7 @@ class SettingsStorePracticeTest {
             it[intPreferencesKey("practice_start_tempo")] = -3
             it[intPreferencesKey("practice_ts_den")] = 3
             it[intPreferencesKey("practice_step")] = 0
+            it[stringPreferencesKey("practice_direction")] = "Sideways"
         }
         val store = SettingsStore(raw)
 
@@ -64,5 +66,17 @@ class SettingsStorePracticeTest {
         assertEquals(PracticeSettings(startTempo = TempoLimits.MIN, stepBpm = 1), value)
         assertEquals(TimeSignature(4, 4), value.timeSignature)
         assertEquals(ClickPattern(4), value.pattern)
+        assertEquals(RampDirection.Off, value.direction)
+
+        // A supported denominator with a non-positive numerator is invalid on its own, so check it
+        // without a bad denominator hiding it behind the same fallback.
+        raw.edit {
+            it[intPreferencesKey("practice_ts_num")] = 0
+            it[intPreferencesKey("practice_ts_den")] = 4
+        }
+        val zeroNumerator = withTimeout(5_000) { store.practice.first() }
+
+        assertEquals(TimeSignature(4, 4), zeroNumerator.timeSignature)
+        assertEquals(ClickPattern(4), zeroNumerator.pattern)
     }
 }

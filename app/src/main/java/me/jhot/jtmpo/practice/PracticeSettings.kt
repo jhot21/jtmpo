@@ -25,7 +25,12 @@ data class PracticeSettings(
     val flipped: Boolean = false,
 ) {
     fun sanitized(): PracticeSettings {
-        val ts = if (timeSignature.denominator in SUPPORTED_DENOMINATORS) timeSignature else DEFAULT_SIGNATURE
+        // A numerator of zero or less is no more usable than an unsupported denominator.
+        val ts = if (timeSignature.denominator in SUPPORTED_DENOMINATORS && timeSignature.numerator > 0) {
+            timeSignature
+        } else {
+            DEFAULT_SIGNATURE
+        }
         val offered = patternsFor(ts)
         val pattern = if (pattern in offered) pattern else offered.first()
         return copy(

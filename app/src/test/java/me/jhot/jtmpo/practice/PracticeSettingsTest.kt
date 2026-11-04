@@ -58,6 +58,15 @@ class PracticeSettingsTest {
     }
 
     @Test
+    fun sanitizedFallsBackForANonPositiveNumerator() {
+        for (bad in listOf(TimeSignature(0, 4), TimeSignature(-4, 4))) {
+            val settings = PracticeSettings(timeSignature = bad).sanitized()
+            assertEquals("$bad", ts44, settings.timeSignature)
+            assertEquals("$bad", p(4), settings.pattern)
+        }
+    }
+
+    @Test
     fun sanitizedClampsTheStartTempoToTheClickRateCap() {
         val settings = PracticeSettings(startTempo = 200, timeSignature = ts44, pattern = p(16)).sanitized()
         assertEquals(150, settings.startTempo)
