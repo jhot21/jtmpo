@@ -31,6 +31,17 @@ class PlaybackController(private val output: ClickOutput) {
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
 
     /**
+     * Invoked before this controller starts the output, so another click owner (Practice) can hand
+     * it back. Runs while this controller's monitor is held, so the callee must not call back in.
+     */
+    @Volatile
+    var onTakeOutput: (() -> Unit)? = null
+
+    /** True while Practice owns the output: rhythm changes here must not retune its click. */
+    @Volatile
+    var outputLent = false
+
+    /**
      * Loads a setlist. Never starts the click: loaded while paused it stays paused. Loaded while the
      * click is playing, it switches at once and keeps playing at the new song's rate, because a click
      * that goes silent mid-set is worse than a switch (an empty setlist stops it).
@@ -59,6 +70,8 @@ class PlaybackController(private val output: ClickOutput) {
         val s = _state.value
         val rhythm = s.effectiveRhythm ?: return
         if (s.isPlaying) return
+        onTakeOutput?.invoke()
+        outputLent = false
         // A sheet preview never blocks real playback: it ends as the loaded click starts.
         if (s.isAuditioning) output.stop()
         val clean = s.copy(isPlaying = true, auditionRhythm = null)
@@ -131,6 +144,8 @@ class PlaybackController(private val output: ClickOutput) {
     @Synchronized
     fun startAudition(rhythm: Rhythm) {
         val s = _state.value
+        onTakeOutput?.invoke()
+        outputLent = false
         if (s.isPlaying) output.stop()
         _state.value = s.copy(isPlaying = false, auditionRhythm = rhythm)
         output.setClicksPerMinute(rhythm.clicksPerMinute())
@@ -157,6 +172,8 @@ class PlaybackController(private val output: ClickOutput) {
     private fun apply(old: PlaybackState, new: PlaybackState) {
         _state.value = new
         val rhythm = new.outputRhythm
-        if (rhythm != null && rhythm != old.outputRhythm) output.setClicksPerMinute(rhythm.clicksPerMinute())
+        if (rhythm != null && rhythm != old.outputRhythm && !outputLent) {
+            output.setClicksPerMinute(rhythm.clicksPerMinute())
+        }
     }
 }

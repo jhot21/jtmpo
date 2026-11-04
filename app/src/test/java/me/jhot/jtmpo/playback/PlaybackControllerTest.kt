@@ -319,6 +319,59 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun onTakeOutputRunsBeforePlayAndAudition() {
+        val (pc, out) = controller(a, b)
+        var taken = 0
+        pc.onTakeOutput = {
+            taken++
+            assertTrue(out.calls.isEmpty())
+            pc.outputLent = true
+        }
+
+        pc.play()
+        assertEquals(1, taken)
+        assertFalse(pc.outputLent)
+
+        // Already playing: the second play() returns early and does not take the output again.
+        pc.play()
+        assertEquals(1, taken)
+
+        pc.pause()
+        out.clear()
+        pc.startAudition(rhythm(90))
+        assertEquals(2, taken)
+        assertFalse(pc.outputLent)
+
+        // Nothing loaded: play() returns before the hook.
+        val (empty, emptyOut) = controller()
+        emptyOut.clear()
+        var emptyTaken = 0
+        empty.onTakeOutput = { emptyTaken++ }
+        empty.play()
+        assertEquals(0, emptyTaken)
+        assertTrue(emptyOut.calls.isEmpty())
+    }
+
+    @Test
+    fun outputLentSuppressesRateChanges() {
+        val (pc, out) = controller(a, b, c)
+        pc.play(); out.clear()
+        pc.outputLent = true
+
+        pc.select(1)
+        pc.preview(rhythm(200))
+        pc.load(2L, listOf(c), 0)
+
+        assertTrue(out.calls.isEmpty())
+        assertEquals(2L, pc.state.value.setlistId)
+
+        // Handing the output back lets the rate follow the state again.
+        pc.outputLent = false
+        pc.preview(rhythm(150))
+        assertEquals(listOf("cpm:150"), out.calls)
+    }
+
+    @Test
     fun aBufferedEmissionForThePreviousSetlistIsIgnored() {
         val (pc, out) = controller(a, b)
         pc.play()
