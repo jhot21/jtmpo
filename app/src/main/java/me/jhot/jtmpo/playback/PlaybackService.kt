@@ -23,17 +23,21 @@ import kotlinx.coroutines.flow.onEach
 import me.jhot.jtmpo.JtmpoApp
 import me.jhot.jtmpo.MainActivity
 import me.jhot.jtmpo.R
+import me.jhot.jtmpo.practice.PracticeController
+import me.jhot.jtmpo.practice.PracticeState
 
 /**
- * Keeps the process in the foreground while a setlist is loaded, so the click survives screen-off
- * and backgrounding. Mirrors [PlaybackController] state into a notification and a platform
- * [MediaSession] whose only actions are play and pause (media buttons and lock screen).
+ * Keeps the process in the foreground while a setlist is loaded or the practice click is engaged,
+ * so the click survives screen-off and backgrounding. Mirrors [PlaybackController] and
+ * [PracticeController] state into a notification and a platform [MediaSession] whose only actions
+ * are play and pause (media buttons and lock screen).
  */
 class PlaybackService : Service() {
     companion object {
         private const val TAG = "PlaybackService"
         private const val NOTIFICATION_ID = 1
-        private const val ACTION_TOGGLE = "me.jhot.jtmpo.action.TOGGLE"
+        internal const val ACTION_TOGGLE = "me.jhot.jtmpo.action.TOGGLE"
+        private const val PRACTICE_TITLE = "Practice"
         private const val SESSION_ACTIONS =
             SessionState.ACTION_PLAY or SessionState.ACTION_PAUSE or SessionState.ACTION_PLAY_PAUSE
 
@@ -50,6 +54,7 @@ class PlaybackService : Service() {
 
     private val scope = MainScope()
     private lateinit var playback: PlaybackController
+    private lateinit var practice: PracticeController
     private lateinit var session: MediaSession
 
     // stopSelf() before the first startForeground() crashes a service started with
@@ -63,18 +68,25 @@ class PlaybackService : Service() {
         super.onCreate()
         val graph = (application as JtmpoApp).graph
         playback = graph.playback
+        practice = graph.practice
         session = MediaSession(this, "jtmpo").apply {
             setCallback(object : MediaSession.Callback() {
-                override fun onPlay() = playback.play()
-                override fun onPause() = playback.pause()
+                // Whichever click owns the output is what the media button must control.
+                override fun onPlay() {
+                    if (practice.state.value.engaged) practice.play() else playback.play()
+                }
+
+                override fun onPause() {
+                    if (practice.state.value.engaged) practice.pause() else playback.pause()
+                }
             })
             setSessionActivity(openAppIntent())
             isActive = true
         }
-        combine(playback.state, graph.repository.setlists()) { state, setlists ->
+        combine(playback.state, practice.state, graph.repository.setlists()) { state, practiceState, setlists ->
             setlistName = setlists.firstOrNull { it.id == state.setlistId }?.name
-            state
-        }.onEach(::render).launchIn(scope)
+            state to practiceState
+        }.onEach { (state, practiceState) -> render(state, practiceState) }.launchIn(scope)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -82,14 +94,21 @@ class PlaybackService : Service() {
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
-            notification(playback.state.value),
+            notification(playback.state.value, practice.state.value),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
         )
         foreground = true
         if (intent?.action == ACTION_TOGGLE) {
-            if (playback.state.value.isPlaying) playback.pause() else playback.play()
+            if (practice.state.value.engaged) {
+                if (practice.state.value.isPlaying) practice.pause() else practice.play()
+            } else if (playback.state.value.isPlaying) {
+                playback.pause()
+            } else {
+                playback.play()
+            }
         }
-        if (playback.state.value.current == null) stop()
+        // Practice keeps the service alive with no setlist: its click must survive screen-off too.
+        if (playback.state.value.current == null && !practice.state.value.engaged) stop()
         return START_NOT_STICKY
     }
 
@@ -101,42 +120,53 @@ class PlaybackService : Service() {
         super.onDestroy()
     }
 
-    private fun render(state: PlaybackState) {
-        val current = state.current
-        if (current == null) {
+    private fun render(state: PlaybackState, practiceState: PracticeState) {
+        if (!practiceState.engaged && state.current == null) {
             if (foreground) stop()
             return
         }
+        val playing = isPlaying(state, practiceState)
         session.setMetadata(
             MediaMetadata.Builder()
-                .putString(MediaMetadata.METADATA_KEY_TITLE, current.title)
-                .putString(MediaMetadata.METADATA_KEY_ARTIST, subtitle(state, current.artist))
+                .putString(MediaMetadata.METADATA_KEY_TITLE, title(state, practiceState))
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, subtitle(state, practiceState))
                 .build(),
         )
         session.setPlaybackState(
             SessionState.Builder()
                 .setActions(SESSION_ACTIONS)
                 .setState(
-                    if (state.isPlaying) SessionState.STATE_PLAYING else SessionState.STATE_PAUSED,
+                    if (playing) SessionState.STATE_PLAYING else SessionState.STATE_PAUSED,
                     SessionState.PLAYBACK_POSITION_UNKNOWN,
-                    if (state.isPlaying) 1f else 0f,
+                    if (playing) 1f else 0f,
                     SystemClock.elapsedRealtime(),
                 )
                 .build(),
         )
-        getSystemService(android.app.NotificationManager::class.java).notify(NOTIFICATION_ID, notification(state))
+        getSystemService(android.app.NotificationManager::class.java)
+            .notify(NOTIFICATION_ID, notification(state, practiceState))
     }
 
-    private fun subtitle(state: PlaybackState, artist: String?) =
-        nowPlayingSubtitle(artist, positionText(setlistName, state.currentIndex, state.entries.size))
+    private fun isPlaying(state: PlaybackState, practiceState: PracticeState) =
+        if (practiceState.engaged) practiceState.isPlaying else state.isPlaying
+
+    private fun title(state: PlaybackState, practiceState: PracticeState): String =
+        if (practiceState.engaged) PRACTICE_TITLE else state.current?.title ?: getString(R.string.app_name)
+
+    /** The line under the title: the practice tempo, or the song's artist and setlist position. */
+    private fun subtitle(state: PlaybackState, practiceState: PracticeState): String? {
+        if (practiceState.engaged) return "${practiceState.tempo} bpm"
+        val current = state.current ?: return null
+        return nowPlayingSubtitle(current.artist, positionText(setlistName, state.currentIndex, state.entries.size))
+    }
 
     private fun stop() {
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
-    private fun notification(state: PlaybackState): Notification {
-        val playing = state.isPlaying
+    private fun notification(state: PlaybackState, practiceState: PracticeState): Notification {
+        val playing = isPlaying(state, practiceState)
         val toggle = PendingIntent.getService(
             this,
             0,
@@ -148,11 +178,10 @@ class PlaybackService : Service() {
             getString(if (playing) R.string.pause else R.string.play),
             toggle,
         ).build()
-        val song = state.current
         return Notification.Builder(this, JtmpoApp.PLAYBACK_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(song?.title ?: getString(R.string.app_name))
-            .setContentText(song?.let { subtitle(state, it.artist) })
+            .setContentTitle(title(state, practiceState))
+            .setContentText(subtitle(state, practiceState))
             .setContentIntent(openAppIntent())
             .setOngoing(true)
             .setOnlyAlertOnce(true)

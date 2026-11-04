@@ -4,10 +4,10 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import me.jhot.jtmpo.playback.PlaybackService
 import me.jhot.jtmpo.share.pruneShareFiles
@@ -25,9 +25,10 @@ class JtmpoApp : Application() {
         graph = AppGraph(this)
         createPlaybackChannel()
         pruneShareFiles(cacheDir)
-        // The service goes foreground whenever playback starts and stops itself once nothing is loaded.
-        graph.playback.state
-            .map { it.isPlaying }
+        // The service goes foreground whenever a click starts and stops itself once nothing is loaded.
+        combine(graph.playback.state, graph.practice.state) { playback, practice ->
+            playback.isPlaying || practice.isPlaying
+        }
             .distinctUntilChanged()
             .filter { it }
             .onEach { PlaybackService.start(this) }
