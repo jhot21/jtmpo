@@ -81,10 +81,14 @@ class PracticeRamp(settings: PracticeSettings = PracticeSettings()) {
         }
     }
 
-    /** The set point only: the live tempo takes it up on the next [reset]. */
+    /**
+     * Moves the set point. While the session is at its start (not [begun]) the live tempo
+     * follows it; once begun, the live tempo takes it up on the next [reset].
+     */
     fun setStartTempo(tempo: Int) {
-        settings = settings.copy(startTempo = clamp(tempo))
-        this.tempo = clamp(this.tempo)
+        val next = clamp(tempo)
+        settings = settings.copy(startTempo = next)
+        this.tempo = if (begun) clamp(this.tempo) else next
     }
 
     /** A changed signature or pattern restarts the bar count; anything else keeps it. */
