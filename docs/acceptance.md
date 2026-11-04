@@ -85,6 +85,27 @@ messaging or mail are for the owner; a build agent cannot run them.
 | [ ] | F9 Text message (owner) | Send a setlist's `.jtmpo` to the phone by text message (MMS or RCS). Open the attachment. | jtmpo is offered and opens the confirmation, or note which app refuses and why. | |
 | [ ] | F10 Email (owner) | Email the `.jtmpo` as an attachment to the phone. Open it from the mail app. | jtmpo is offered and opens the confirmation, or note which app refuses and why. | |
 
+## G. Practice
+
+The Practice tab is a metronome on its own: no song or setlist needed. G11 uses the demo library
+(`demo/README.md`); the timing items are best checked with in-ears against a second reference
+metronome.
+
+| Done | Item | Steps | Expected | Result |
+| --- | --- | --- | --- | --- |
+| [ ] | G1 Ramp up on the bar line | Practice: Ramp Up, Step 5, Every 4 bars, Start tempo 60. Play for two minutes. | The click speeds up by 5 BPM on the first click of every fourth bar, with no gap, double click or stutter at the change. The tempo card and "Bar N of 4 · next X" follow the click, and the bar count restarts at 1 as each step lands. | |
+| [ ] | G2 Ramp down | Same with Down from 200 BPM. | The click slows by 5 BPM every fourth bar, on the bar line. The single gap right after a step down may still be at the old tempo; at these step sizes it should be inaudible. | |
+| [ ] | G3 100 and 200 BPM | Repeat G1 with Start tempo 100, then 200. | Same clean steps on the bar line at both tempos; the card stays in step with the click. | |
+| [ ] | G4 Upper limit | Up, Step 50, Every 1 bar, Start tempo 300: play. Then set 4/4 Click 1/16 (cap 150 BPM) and 6/8 Click 1/8 (cap 200 BPM), start just below each cap and ramp up. | The click keeps going at the limit and the line reads "at limit" instead of "next"; the tempo never climbs past 300 or the subdivision's cap. The Start tempo row stops there too. | |
+| [ ] | G5 Pause and resume | With a ramp running, pause mid-interval, wait 10 seconds, play again. | The click stops and the tempo and bar count freeze while paused. Play restarts at the top of the interrupted bar with the count kept, and the next step still lands on a bar line. | |
+| [ ] | G6 Reset | Mid-ramp, tap Reset once while playing and once while paused. | Tempo returns to Start tempo and the bar count to 1. While playing the click restarts at once at the start tempo on bar 1 (no count-in); while paused nothing sounds until play, which then starts at bar 1. | |
+| [ ] | G7 Nudge mid-ramp | With Up running, drag the tempo control and use its -/+ mid-session, then change Start tempo. | The live tempo moves to the new value and the ramp carries on from there, still stepping on the bar line. Start tempo stays as it was until Reset, which returns to it. Before the first play, and after Reset, the tempo control moves Start tempo too. | |
+| [ ] | G8 Rotate | Tap the rotate button in the Practice header, then force-stop and relaunch. | Practice flips 180° and back, and stays in the state it was left in after the relaunch. Other tabs are unaffected. | |
+| [ ] | G9 Screen off | Settings: turn Keep screen awake off. Ramp Up from 60. Play, switch the screen off, leave 5 minutes. | The screen times out normally and the click keeps going, still stepping on the bar line. Waking the phone shows the tempo the ramp has reached. | |
+| [ ] | G10 Unplug headphones | Play Practice with wired in-ears; unplug the adapter. | The click pauses at once and nothing plays from the speaker; replugging stays paused until play. | |
+| [ ] | G11 A song takes over | With Practice playing, open a setlist and start a song. Then return to Practice and play. | Practice stops when the song starts, the notification switches to the song, and the setlist is untouched by Practice. Playing in Practice stops the song and resumes the click at the tempo and bar it was paused at. | |
+| [ ] | G12 Back and Settings | From Practice press Back. Reopen jtmpo, open Settings from Practice, then press Back. | Back from Practice leaves the app, with no tab switch. Back from Settings returns to Practice, not to Setlists. | |
+
 ## Sign-off
 
 Date: ____  Build/commit: ____  Overall: ____

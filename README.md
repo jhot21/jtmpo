@@ -5,17 +5,21 @@ off, and keeps your songs and their tempos in setlists, so you can step through 
 the tempo control.
 
 <p>
-  <img src="docs/screenshots/setlists.png" width="19%" alt="Setlists">
-  <img src="docs/screenshots/setlist.png" width="19%" alt="A setlist">
-  <img src="docs/screenshots/player.png" width="19%" alt="The player">
-  <img src="docs/screenshots/library.png" width="19%" alt="The song library">
-  <img src="docs/screenshots/edit-song.png" width="19%" alt="Editing a song">
+  <img src="docs/screenshots/setlists.png" width="16%" alt="Setlists">
+  <img src="docs/screenshots/setlist.png" width="16%" alt="A setlist">
+  <img src="docs/screenshots/player.png" width="16%" alt="The player">
+  <img src="docs/screenshots/practice.png" width="16%" alt="The practice metronome">
+  <img src="docs/screenshots/library.png" width="16%" alt="The song library">
+  <img src="docs/screenshots/edit-song.png" width="16%" alt="Editing a song">
 </p>
 
 ## What it does
 
 - **A steady click.** Sample-accurate timing from a foreground service, so it keeps going with the
   screen off, the app in the background, or the phone locked. Tempos from 20 to 300 BPM.
+- **A practice metronome.** The Practice tab is a metronome on its own, no song needed: ramp the
+  tempo up or down by a few BPM every few bars for warm-ups and rudiments, with a bar counter and a
+  Reset back to the start tempo. It keeps clicking with the screen off.
 - **Songs and setlists.** Keep every song's tempo, time signature, click pattern and notes in a
   library, and put songs in as many setlists as you like. Drag to reorder.
 - **Per-setlist overrides.** Play a song slower in rehearsal, or leave a different note on it for one
