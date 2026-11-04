@@ -46,9 +46,6 @@ class PracticeViewModel(private val practice: PracticeController) : ViewModel() 
     /** The tempo card: the live tempo mid-ramp, the start tempo while the session has not begun. */
     fun nudgeTempo(tempo: Int) = practice.nudgeTempo(tempo)
 
-    /** The Start tempo row: never the live tempo once the session has begun. */
-    fun setStartTempo(tempo: Int) = practice.setStartTempo(tempo)
-
     /** The new signature's grid, with the current subdivision carried over where it still fits. */
     fun setSignature(timeSignature: TimeSignature) = practice.update { settings ->
         settings.copy(

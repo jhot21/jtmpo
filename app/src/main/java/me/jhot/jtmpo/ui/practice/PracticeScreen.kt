@@ -102,7 +102,6 @@ private fun PracticeContent(vm: PracticeViewModel, graph: AppGraph, pulses: Shar
                 onDirection = vm::setDirection,
                 onStep = vm::setStep,
                 onEveryBars = vm::setEveryBars,
-                onStartTempo = vm::setStartTempo,
             )
         }
     }
@@ -202,7 +201,6 @@ private fun RampControls(
     onDirection: (RampDirection) -> Unit,
     onStep: (Int) -> Unit,
     onEveryBars: (Int) -> Unit,
-    onStartTempo: (Int) -> Unit,
 ) {
     val settings = ui.settings
     Label(stringResource(R.string.practice_ramp))
@@ -238,13 +236,6 @@ private fun RampControls(
         enabled = ui.rampOn,
         onMinus = { onEveryBars(settings.everyBars - 1) },
         onPlus = { onEveryBars(settings.everyBars + 1) },
-    )
-    StepperRow(
-        label = stringResource(R.string.practice_start_tempo),
-        value = "${settings.startTempo}",
-        enabled = true,
-        onMinus = { onStartTempo(settings.startTempo - 1) },
-        onPlus = { onStartTempo(settings.startTempo + 1) },
     )
 }
 

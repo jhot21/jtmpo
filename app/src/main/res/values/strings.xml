@@ -154,7 +154,6 @@
         <item quantity="one">Every %1$d bar</item>
         <item quantity="other">Every %1$d bars</item>
     </plurals>
-    <string name="practice_start_tempo">Start tempo</string>
     <string name="practice_decrease">Decrease %1$s</string>
     <string name="practice_increase">Increase %1$s</string>
 </resources>

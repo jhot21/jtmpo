@@ -83,7 +83,7 @@ class PracticeViewModelTest {
         vm.setDirection(RampDirection.Up)
         vm.setStep(5)
         vm.setEveryBars(everyBars)
-        vm.setStartTempo(90)
+        vm.nudgeTempo(90)
     }
 
     @Test
@@ -106,7 +106,7 @@ class PracticeViewModelTest {
     @Test
     fun uiFlagsAtLimit() {
         vm.setDirection(RampDirection.Up)
-        vm.setStartTempo(300)
+        vm.nudgeTempo(300)
 
         val ui = vm.ui.value
         assertTrue(ui.atLimit)
