@@ -51,9 +51,13 @@ class PracticeController(
         val cpm = synchronized(lock) {
             acted = true
             engaged = true
-            isPlaying = true
-            ramp.play()
-            publish()
+            // A second play() during a session must not re-arm the ramp: the next click would be
+            // taken for a downbeat and the bar count would drift by a click.
+            if (!isPlaying) {
+                isPlaying = true
+                ramp.play()
+                publish()
+            }
             rate()
         }
         output.setClicksPerMinute(cpm)

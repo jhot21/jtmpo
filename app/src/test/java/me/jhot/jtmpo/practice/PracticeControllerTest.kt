@@ -8,6 +8,7 @@ import me.jhot.jtmpo.domain.ClickPattern
 import me.jhot.jtmpo.domain.EffectiveSong
 import me.jhot.jtmpo.domain.Rhythm
 import me.jhot.jtmpo.domain.TimeSignature
+import me.jhot.jtmpo.domain.clicksPerMinute
 import me.jhot.jtmpo.playback.PlaybackController
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -180,6 +181,38 @@ class PracticeControllerTest {
     }
 
     @Test
+    fun playWhileAlreadyPlayingKeepsTheBarCount() {
+        val (out, _, practice) = rig(rampUp())
+        practice.play()
+        out.clicks(6)
+        assertEquals(2, practice.state.value.bar)
+
+        practice.play()
+        out.click()
+        assertEquals(2, practice.state.value.bar)
+
+        out.clicks(4)
+        assertEquals(3, practice.state.value.bar)
+        assertEquals(2, out.calls.count { it == "start" })
+    }
+
+    @Test
+    fun playWhileAlreadyPlayingDoesNotTreatTheNextClickAsADownbeat() {
+        val (out, _, practice) = rig(rampUp(everyBars = 2))
+        practice.play()
+        out.clicks(6)
+        assertEquals(2, practice.state.value.bar)
+        assertEquals(60, practice.state.value.tempo)
+
+        // Counting carries on from the click the session was on, so the step still lands on the
+        // same downbeat. Re-arming the ramp would push it one click later.
+        practice.play()
+        out.clicks(3)
+
+        assertEquals(65, practice.state.value.tempo)
+    }
+
+    @Test
     fun pauseFreezesAndResumeKeepsTheBar() {
         val (out, _, practice) = rig(rampUp())
         practice.play()
@@ -281,6 +314,21 @@ class PracticeControllerTest {
 
         assertEquals(listOf("cpm:120"), out.calls)
         assertEquals(ClickPattern(8), practice.state.value.settings.pattern)
+        assertEquals(1, practice.state.value.bar)
+    }
+
+    @Test
+    fun changingTheSignatureWhilePlayingUpdatesTheRate() {
+        val (out, _, practice) = rig()
+        practice.play()
+        out.clear()
+
+        val signature = TimeSignature(6, 8)
+        val pattern = ClickPattern(8)
+        practice.update { it.copy(timeSignature = signature, pattern = pattern) }
+
+        val expected = Rhythm(60, signature, pattern).clicksPerMinute()
+        assertEquals(listOf("cpm:${expected.toInt()}"), out.calls)
         assertEquals(1, practice.state.value.bar)
     }
 
