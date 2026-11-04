@@ -21,6 +21,9 @@ private class RecordingOutput : ClickOutput {
 
     /** The last rate pushed, untruncated: the click must play exactly what the state shows. */
     @Volatile var lastRate: Double = Double.NaN
+
+    /** Runs inside stop(), like a click the writer had already started. */
+    var onStop: (() -> Unit)? = null
     private var listener: (() -> Unit)? = null
 
     override var onClickStart: (() -> Unit)?
@@ -28,7 +31,10 @@ private class RecordingOutput : ClickOutput {
         set(value) { listener = value }
 
     override fun start() { calls += "start" }
-    override fun stop() { calls += "stop" }
+    override fun stop() {
+        calls += "stop"
+        onStop?.invoke()
+    }
     override fun setClicksPerMinute(cpm: Double) {
         lastRate = cpm
         calls += "cpm:${cpm.toInt()}"
@@ -252,11 +258,28 @@ class PracticeControllerTest {
 
         practice.reset()
 
-        // The rate goes in under the lock, before the restart, so the click and the bar agree.
-        assertEquals(listOf("cpm:60", "stop", "start"), out.calls)
+        // Stopped first, then the ramp and the rate, then the restart.
+        assertEquals(listOf("stop", "cpm:60", "start"), out.calls)
         assertEquals(60, practice.state.value.tempo)
         assertEquals(1, practice.state.value.bar)
         assertTrue(practice.state.value.isPlaying)
+    }
+
+    @Test
+    fun aClickInFlightDuringResetDoesNotCountTowardsTheRestartedBar() {
+        val (out, _, practice) = rig(rampUp(everyBars = 1))
+        practice.play()
+        out.clicks(2)
+        out.onStop = { out.click() }
+
+        practice.reset()
+        out.onStop = null
+
+        // A bar is four clicks, so the restarted ramp steps on the fifth.
+        out.clicks(4)
+        assertEquals(60, practice.state.value.tempo)
+        out.click()
+        assertEquals(65, practice.state.value.tempo)
     }
 
     @Test

@@ -87,17 +87,23 @@ class PracticeController(
     fun reset() {
         val playing = synchronized(lock) {
             acted = true
-            ramp.reset()
-            publish()
-            if (isPlaying) {
-                output.setClicksPerMinute(rate())
-                true
-            } else {
-                false
+            if (!isPlaying) {
+                ramp.reset()
+                publish()
             }
+            isPlaying
         }
         if (!playing) return
+        // Stopped before the ramp is reset: stop() joins the writer, so a click already in flight
+        // lands on the old ramp instead of counting as the first click of the restarted bar.
         output.stop()
+        synchronized(lock) {
+            // A pause or a take-over that landed during the stop wins; it must not be restarted.
+            if (!isPlaying) return
+            ramp.reset()
+            publish()
+            output.setClicksPerMinute(rate())
+        }
         output.start()
     }
 
