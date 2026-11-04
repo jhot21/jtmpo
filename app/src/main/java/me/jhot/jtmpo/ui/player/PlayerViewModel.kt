@@ -20,6 +20,7 @@ import me.jhot.jtmpo.domain.EffectiveSong
 import me.jhot.jtmpo.playback.PlaybackController
 import me.jhot.jtmpo.playback.PlaybackState
 import me.jhot.jtmpo.playback.positionText
+import me.jhot.jtmpo.practice.PracticeController
 
 data class PlayerUi(
     val hasSong: Boolean = false,
@@ -58,12 +59,29 @@ fun tempoUnitNote(ts: TimeSignature): String {
 
 fun patternLabel(p: ClickPattern) = (if (p.dotted) "dotted " else "") + "1/${p.noteDenominator}"
 
-/** The window flag follows this alone: while the click plays or the player is open, and only if the user wants it. */
-fun keepScreenOn(isPlaying: Boolean, playerOpen: Boolean, keepAwake: Boolean) = (isPlaying || playerOpen) && keepAwake
+/** The window flag follows this alone: while the click plays or a screen that owns it is open, and only if the user wants it. */
+fun keepScreenOn(isPlaying: Boolean, playerOpen: Boolean, keepAwake: Boolean, practiceOpen: Boolean = false) =
+    (isPlaying || playerOpen || practiceOpen) && keepAwake
 
-/** Shared by the player and the activity (which owns the window flag, so it holds across screens). */
-fun keepScreenOnFlow(playback: PlaybackController, playerOpen: Flow<Boolean>, settings: SettingsStore): Flow<Boolean> =
-    combine(playback.state.map { it.isPlaying }, playerOpen, settings.keepAwake, ::keepScreenOn)
+/**
+ * Shared by the player and the activity (which owns the window flag, so it holds across screens).
+ * Practice plays through its own controller, so its click counts as playing here too.
+ */
+fun keepScreenOnFlow(
+    playback: PlaybackController,
+    playerOpen: Flow<Boolean>,
+    settings: SettingsStore,
+    practice: PracticeController,
+    practiceOpen: Flow<Boolean>,
+): Flow<Boolean> = combine(
+    playback.state.map { it.isPlaying },
+    playerOpen,
+    settings.keepAwake,
+    practice.state.map { it.isPlaying },
+    practiceOpen,
+) { playing, player, keepAwake, practicePlaying, practiceShowing ->
+    keepScreenOn(playing || practicePlaying, player, keepAwake, practiceShowing)
+}
 
 class PlayerViewModel(
     private val playback: PlaybackController,

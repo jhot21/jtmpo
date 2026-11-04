@@ -13,7 +13,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -29,6 +32,7 @@ import me.jhot.jtmpo.domain.Rhythm
 import me.jhot.jtmpo.domain.TimeSignature
 import me.jhot.jtmpo.playback.LastPositionTracker
 import me.jhot.jtmpo.playback.PlaybackController
+import me.jhot.jtmpo.practice.PracticeController
 import me.jhot.jtmpo.testutil.TestViewModels
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -217,6 +221,29 @@ class PlayerViewModelTest {
         assertTrue(withTimeout(5_000) { vm.ui.first { it.keepAwake && !it.isPlaying } }.keepScreenOn)
         assertFalse("off elsewhere when paused", keepScreenOn(isPlaying = false, playerOpen = false, keepAwake = true))
         assertTrue("click keeps it on elsewhere", keepScreenOn(isPlaying = true, playerOpen = false, keepAwake = true))
+    }
+
+    @Test
+    fun keepScreenOnFlowCoversPractice() = runBlocking {
+        val practice = PracticeController(output, playback)
+        val playerOpen = MutableStateFlow(false)
+        val practiceOpen = MutableStateFlow(false)
+        val flow = keepScreenOnFlow(playback, playerOpen, settings, practice, practiceOpen)
+            .stateIn(scope, SharingStarted.Eagerly, false)
+
+        practice.play()
+        assertTrue("practice playing off its own screen keeps it awake", eventually { flow.value.takeIf { it } })
+
+        practice.pause()
+        practiceOpen.value = true
+        assertTrue("practice open and paused keeps it awake", eventually { flow.value.takeIf { it } })
+
+        practiceOpen.value = false
+        assertFalse("nothing playing and nothing open lets it sleep", eventually { flow.value.takeIf { !it } })
+
+        practiceOpen.value = true
+        settings.setKeepAwake(false)
+        assertFalse("keep awake off overrides the open practice screen", eventually { flow.value.takeIf { !it } })
     }
 
     @Test

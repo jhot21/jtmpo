@@ -14,6 +14,7 @@ import android.view.WindowManager
 import android.widget.Toast
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import me.jhot.jtmpo.share.IncomingResult
 import me.jhot.jtmpo.share.receiveIncoming
@@ -36,14 +37,23 @@ class MainActivity : ComponentActivity() {
         // Held here rather than in the player so it also covers the other tabs while the click plays.
         val graph = (application as JtmpoApp).graph
         lifecycleScope.launch {
-            keepScreenOnFlow(graph.playback, graph.playerOpen, graph.settings).distinctUntilChanged().collect { on ->
-                if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            }
+            keepScreenOnFlow(graph.playback, graph.playerOpen, graph.settings, graph.practice, graph.practiceOpen)
+                .distinctUntilChanged()
+                .collect { on ->
+                    if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
         }
         // Overrides the manifest's userPortrait, which lets the system (Tasker, say) rotate to upside down.
         lifecycleScope.launch {
-            combine(graph.settings.flipScreen, graph.settings.flipPlayerOnly, graph.playerOpen, ::requestedOrientation)
+            combine(
+                graph.settings.flipScreen,
+                graph.settings.flipPlayerOnly,
+                graph.playerOpen,
+                graph.practiceOpen,
+                graph.practice.state.map { it.settings.flipped },
+                ::requestedOrientation,
+            )
                 .distinctUntilChanged()
                 .collect { requestedOrientation = it }
         }
