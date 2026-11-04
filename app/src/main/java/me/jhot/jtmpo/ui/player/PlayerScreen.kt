@@ -1,7 +1,5 @@
 package me.jhot.jtmpo.ui.player
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -58,21 +56,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import me.jhot.jtmpo.AppGraph
 import me.jhot.jtmpo.R
 import me.jhot.jtmpo.domain.EffectiveSong
 import me.jhot.jtmpo.ui.components.JtmpoSnackbarHost
-import me.jhot.jtmpo.ui.components.TempoDragControl
+import me.jhot.jtmpo.ui.components.TempoCard
 import me.jhot.jtmpo.ui.edit.EditSongSheet
 import me.jhot.jtmpo.ui.edit.EditSongViewModel
 import me.jhot.jtmpo.ui.setlists.AddSongsSheet
-import me.jhot.jtmpo.ui.theme.Accent
 import me.jhot.jtmpo.ui.theme.SurfaceCard
 import me.jhot.jtmpo.ui.theme.TextSecondary
 
@@ -140,7 +135,12 @@ private fun PlayerContent(
                     )
                 } else {
                     SongInfo(ui)
-                    TempoCard(ui, pulses) { tempo -> if (editUi?.loaded == true) editVm.setTempo(tempo) }
+                    TempoCard(
+                        tempo = ui.tempo,
+                        unitLabel = ui.tempoUnit,
+                        pulses = pulses,
+                        onTempo = { tempo -> if (editUi?.loaded == true) editVm.setTempo(tempo) },
+                    )
                     Chips(
                         ui,
                         onEdit = { if (editUi?.loaded == true) chipEditing = editVm },
@@ -254,47 +254,6 @@ private fun SongInfo(ui: PlayerUi) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 6.dp),
             )
-        }
-    }
-}
-
-@Composable
-private fun TempoCard(ui: PlayerUi, pulses: SharedFlow<Unit>, onTempo: (Int) -> Unit) {
-    // Driven by the audio output's own timing, not a UI timer: one flash per audible click.
-    val pulse = remember { Animatable(0f) }
-    LaunchedEffect(pulses) {
-        // collectLatest: a new click restarts the flash instead of queueing behind the previous one.
-        pulses.collectLatest {
-            pulse.snapTo(1f)
-            pulse.animateTo(0f, tween(durationMillis = 160))
-        }
-    }
-    Surface(
-        Modifier.fillMaxWidth().widthIn(max = 480.dp),
-        color = SurfaceCard,
-        shape = MaterialTheme.shapes.large,
-    ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "${ui.tempo}",
-                fontSize = 84.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 88.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.graphicsLayer {
-                    val p = pulse.value
-                    scaleX = 1f + 0.08f * p
-                    scaleY = 1f + 0.08f * p
-                    alpha = 0.72f + 0.28f * p
-                },
-            )
-            Text(
-                "${stringResource(R.string.bpm)} ${ui.tempoUnit}".trim(),
-                style = MaterialTheme.typography.labelMedium,
-                color = TextSecondary,
-                letterSpacing = 2.sp,
-            )
-            TempoDragControl(ui.tempo, onTempo, Modifier.padding(top = 4.dp))
         }
     }
 }
