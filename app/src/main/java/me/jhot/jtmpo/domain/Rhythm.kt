@@ -28,6 +28,14 @@ val COMMON_SIGNATURES: List<TimeSignature> = listOf(
     TimeSignature(7, 8),
 )
 
+/**
+ * What a time signature may be: the picker's "Other…" stepper offers these numerators and these
+ * denominators, and the song editor's view model refuses anything outside them. One definition, so
+ * the two cannot drift.
+ */
+val SIGNATURE_NUMERATORS = 1..32
+val SIGNATURE_DENOMINATORS = listOf(2, 4, 8, 16)
+
 /** 6, 9 or 12 over 8 or 16: the beat is a dotted note grouping three of the bottom note. */
 val TimeSignature.isCompound: Boolean
     get() = denominator in listOf(8, 16) && numerator in listOf(6, 9, 12)

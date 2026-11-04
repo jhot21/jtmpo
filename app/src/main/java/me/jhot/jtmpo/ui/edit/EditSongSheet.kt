@@ -24,7 +24,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -49,9 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.jhot.jtmpo.R
 import me.jhot.jtmpo.domain.ClickPattern
-import me.jhot.jtmpo.domain.COMMON_SIGNATURES
-import me.jhot.jtmpo.domain.TimeSignature
 import me.jhot.jtmpo.domain.patternsFor
+import me.jhot.jtmpo.ui.components.SignaturePicker
 import me.jhot.jtmpo.ui.components.TempoDragControl
 import me.jhot.jtmpo.ui.theme.TextSecondary
 
@@ -218,27 +216,4 @@ private fun TempoField(tempo: Int, vm: EditSongViewModel) {
             focused = it.isFocused
         },
     )
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SignaturePicker(current: TimeSignature, onPick: (TimeSignature) -> Unit) {
-    var otherOpen by remember { mutableStateOf(current !in COMMON_SIGNATURES) }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        COMMON_SIGNATURES.forEach { ts ->
-            FilterChip(current == ts && !otherOpen, { otherOpen = false; onPick(ts) }, label = { Text(ts.toString()) })
-        }
-        FilterChip(otherOpen, { otherOpen = true }, label = { Text("Other…") })
-    }
-    if (otherOpen) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalIconButton({ onPick(current.copy(numerator = (current.numerator - 1).coerceAtLeast(1))) }) { Text("−") }
-            Text("${current.numerator}", style = MaterialTheme.typography.titleLarge)
-            FilledTonalIconButton({ onPick(current.copy(numerator = (current.numerator + 1).coerceAtMost(32))) }) { Text("+") }
-            Text("/", style = MaterialTheme.typography.titleLarge)
-            listOf(2, 4, 8, 16).forEach { d ->
-                FilterChip(current.denominator == d, { onPick(current.copy(denominator = d)) }, label = { Text("$d") })
-            }
-        }
-    }
 }

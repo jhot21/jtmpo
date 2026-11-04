@@ -17,6 +17,8 @@ import me.jhot.jtmpo.data.Song
 import me.jhot.jtmpo.domain.ClickPattern
 import me.jhot.jtmpo.domain.EffectiveSong
 import me.jhot.jtmpo.domain.Rhythm
+import me.jhot.jtmpo.domain.SIGNATURE_DENOMINATORS
+import me.jhot.jtmpo.domain.SIGNATURE_NUMERATORS
 import me.jhot.jtmpo.domain.TempoLimits
 import me.jhot.jtmpo.domain.TimeSignature
 import me.jhot.jtmpo.domain.clicksPerMinute
@@ -196,7 +198,7 @@ class EditSongViewModel(
     }
 
     fun setTimeSignature(ts: TimeSignature) {
-        if (ts.numerator !in 1..32 || ts.denominator !in listOf(2, 4, 8, 16)) return
+        if (ts.numerator !in SIGNATURE_NUMERATORS || ts.denominator !in SIGNATURE_DENOMINATORS) return
         edit(rhythm = true) {
             val r = it.rhythm
             r.timeSignature.let { from ->

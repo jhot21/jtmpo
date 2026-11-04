@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -56,9 +57,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import me.jhot.jtmpo.AppGraph
 import me.jhot.jtmpo.R
 import me.jhot.jtmpo.domain.ClickPattern
-import me.jhot.jtmpo.domain.COMMON_SIGNATURES
 import me.jhot.jtmpo.domain.TimeSignature
 import me.jhot.jtmpo.practice.RampDirection
+import me.jhot.jtmpo.ui.components.SignaturePicker
 import me.jhot.jtmpo.ui.components.TempoCard
 import me.jhot.jtmpo.ui.player.patternLabel
 import me.jhot.jtmpo.ui.theme.TextSecondary
@@ -232,7 +233,7 @@ private fun RampControls(
         onPlus = { onStep(settings.stepBpm + 1) },
     )
     StepperRow(
-        label = stringResource(R.string.practice_every_bars, settings.everyBars),
+        label = pluralStringResource(R.plurals.practice_every_bars, settings.everyBars, settings.everyBars),
         value = null,
         enabled = ui.rampOn,
         onMinus = { onEveryBars(settings.everyBars - 1) },
@@ -275,6 +276,7 @@ private fun StepperRow(
             Modifier.widthIn(min = 56.dp),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleMedium,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else TextSecondary,
         )
         FilledTonalIconButton(onPlus, Modifier.size(48.dp), enabled = enabled) {
             Text("+", style = MaterialTheme.typography.titleMedium)
@@ -327,29 +329,6 @@ private fun PickerSheet(
                         label = { Text(patternLabel(pattern)) },
                     )
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SignaturePicker(current: TimeSignature, onPick: (TimeSignature) -> Unit) {
-    var otherOpen by remember { mutableStateOf(current !in COMMON_SIGNATURES) }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        COMMON_SIGNATURES.forEach { ts ->
-            FilterChip(current == ts && !otherOpen, { otherOpen = false; onPick(ts) }, label = { Text(ts.toString()) })
-        }
-        FilterChip(otherOpen, { otherOpen = true }, label = { Text("Other\u2026") })
-    }
-    if (otherOpen) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalIconButton({ onPick(current.copy(numerator = (current.numerator - 1).coerceAtLeast(1))) }) { Text("\u2212") }
-            Text("${current.numerator}", style = MaterialTheme.typography.titleLarge)
-            FilledTonalIconButton({ onPick(current.copy(numerator = (current.numerator + 1).coerceAtMost(32))) }) { Text("+") }
-            Text("/", style = MaterialTheme.typography.titleLarge)
-            listOf(2, 4, 8, 16).forEach { d ->
-                FilterChip(current.denominator == d, { onPick(current.copy(denominator = d)) }, label = { Text("$d") })
             }
         }
     }

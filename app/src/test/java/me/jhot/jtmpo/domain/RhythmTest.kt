@@ -109,6 +109,15 @@ class RhythmTest {
     }
 
     @Test
+    fun signatureBoundsCoverTheCommonSignatures() {
+        // The picker's Other… row and EditSongViewModel's guard share these, so they cannot drift.
+        assertTrue(COMMON_SIGNATURES.all { it.numerator in SIGNATURE_NUMERATORS })
+        assertTrue(COMMON_SIGNATURES.all { it.denominator in SIGNATURE_DENOMINATORS })
+        // Every offered denominator has patterns to pick from.
+        assertTrue(SIGNATURE_DENOMINATORS.all { patternsFor(TimeSignature(4, it)).isNotEmpty() })
+    }
+
+    @Test
     fun remapPatternExamples() {
         assertEquals(p(8), remapPattern(p(8), ts44, ts68))
         assertEquals(p(4), remapPattern(p(4, true), ts68, ts44))

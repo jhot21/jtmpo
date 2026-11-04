@@ -150,6 +150,9 @@
     <string name="practice_off">Off</string>
     <string name="practice_up">Up</string>
     <string name="practice_step">Step</string>
-    <string name="practice_every_bars">Every %1$d bars</string>
+    <plurals name="practice_every_bars">
+        <item quantity="one">Every %1$d bar</item>
+        <item quantity="other">Every %1$d bars</item>
+    </plurals>
     <string name="practice_start_tempo">Start tempo</string>
 </resources>
