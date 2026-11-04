@@ -3,6 +3,7 @@ package me.jhot.jtmpo.practice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import me.jhot.jtmpo.audio.AudioTrackOutput
 import me.jhot.jtmpo.audio.ClickOutput
 import me.jhot.jtmpo.domain.Rhythm
 import me.jhot.jtmpo.domain.clicksPerMinute
@@ -180,4 +181,16 @@ class PracticeController(
         isPlaying = isPlaying,
         engaged = engaged,
     )
+}
+
+/**
+ * When the output device goes away, or the track fails to start or dies, both click owners stop:
+ * whichever one holds the output must end up paused, not playing silently. Called on the main
+ * thread or the audio thread; neither pause holds a lock across `stop()`.
+ */
+fun bindOutputLoss(output: AudioTrackOutput, playback: PlaybackController, practice: PracticeController) {
+    output.onOutputLost = {
+        playback.pause()
+        practice.pause()
+    }
 }
