@@ -100,7 +100,9 @@ class PracticeController(
         synchronized(lock) {
             // A pause or a take-over that landed during the stop wins; it must not be restarted.
             if (!isPlaying) return
+            // Running again at once, so the restarted click is the downbeat and a nudge is mid-ramp.
             ramp.reset()
+            ramp.play()
             publish()
             output.setClicksPerMinute(rate())
         }

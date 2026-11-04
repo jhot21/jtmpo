@@ -30,6 +30,8 @@ data class PracticeUi(
     val rampOn: Boolean,
     val atLimit: Boolean,
     val isPlaying: Boolean,
+    /** The ramp has moved the tempo off the start tempo, so Reset would change something. */
+    val canReset: Boolean,
     val settings: PracticeSettings,
     val patterns: List<ClickPattern>,
 )
@@ -83,6 +85,7 @@ private fun PracticeState.toUi(): PracticeUi {
         // The ramp reports no next tempo when it is off and when a step would not move it: at a limit.
         atLimit = rampOn && nextTempo == null,
         isPlaying = isPlaying,
+        canReset = tempo != settings.startTempo,
         settings = settings,
         patterns = patternsFor(settings.timeSignature),
     )

@@ -44,7 +44,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -95,7 +94,7 @@ private fun PracticeContent(vm: PracticeViewModel, graph: AppGraph, pulses: Shar
             ) {
                 BarLine(ui)
             }
-            Transport(isPlaying = ui.isPlaying, onReset = vm::reset, onToggle = vm::togglePlay)
+            Transport(isPlaying = ui.isPlaying, canReset = ui.canReset, onReset = vm::reset, onToggle = vm::togglePlay)
             Chips(ui, onEdit = { picking = true })
             RampControls(
                 ui = ui,
@@ -150,14 +149,19 @@ private fun BarLine(ui: PracticeUi) {
 }
 
 @Composable
-private fun Transport(isPlaying: Boolean, onReset: () -> Unit, onToggle: () -> Unit) {
+private fun Transport(isPlaying: Boolean, canReset: Boolean, onReset: () -> Unit, onToggle: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().widthIn(max = 480.dp).padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onReset, Modifier.size(52.dp)) {
-            Icon(painterResource(R.drawable.ic_reset), stringResource(R.string.practice_reset), Modifier.size(28.dp))
+        // Only offered when it would change something; the slot stays so play does not shift.
+        if (canReset) {
+            IconButton(onReset, Modifier.size(52.dp)) {
+                Icon(painterResource(R.drawable.ic_reset), stringResource(R.string.practice_reset), Modifier.size(28.dp))
+            }
+        } else {
+            Spacer(Modifier.size(52.dp))
         }
         FilledIconButton(
             onToggle,
@@ -231,22 +235,19 @@ private fun RampControls(
         onPlus = { onStep(settings.stepBpm + 1) },
     )
     StepperRow(
-        label = pluralStringResource(R.plurals.practice_every_bars, settings.everyBars, settings.everyBars),
-        value = null,
+        label = stringResource(R.string.practice_every_bars),
+        value = "${settings.everyBars}",
         enabled = ui.rampOn,
         onMinus = { onEveryBars(settings.everyBars - 1) },
         onPlus = { onEveryBars(settings.everyBars + 1) },
     )
 }
 
-/**
- * A label with -/+ around the value. A null [value] means the label already carries it ("Every 8 bars").
- * The rows dim through their buttons' disabled colours while the ramp is off.
- */
+/** A label with -/+ around the value. The rows dim through their buttons' disabled colours while the ramp is off. */
 @Composable
 private fun StepperRow(
     label: String,
-    value: String?,
+    value: String,
     enabled: Boolean,
     onMinus: () -> Unit,
     onPlus: () -> Unit,
@@ -269,7 +270,7 @@ private fun StepperRow(
         }
         // The slot is always there, so -/+ line up whether or not the label carries the value.
         Text(
-            value ?: "",
+            value,
             Modifier.widthIn(min = 56.dp),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleMedium,
