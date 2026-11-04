@@ -246,31 +246,16 @@ class PracticeRampTest {
     }
 
     @Test
-    fun setStartTempoBeforePlayMovesTheLiveTempo() {
-        val ramp = ramp(play = false)
-
-        ramp.setStartTempo(100)
-        assertEquals(100, ramp.tempo)
-        assertEquals(100, ramp.settings.startTempo)
-        assertEquals(105, ramp.nextTempo)
-
-        ramp.play()
-        ramp.setStartTempo(80)
-        assertEquals(100, ramp.tempo)
-        assertEquals(80, ramp.settings.startTempo)
-    }
-
-    @Test
-    fun setStartTempoMidRampLeavesTheCurrentTempo() {
+    fun nudgeAfterResetMovesTheStartTempoAgain() {
         val ramp = ramp()
         ramp.clicks(6)
-
-        ramp.setStartTempo(100)
-        assertEquals(60, ramp.tempo)
-        assertEquals(100, ramp.settings.startTempo)
+        ramp.nudge(100)
+        assertEquals(60, ramp.settings.startTempo)
 
         ramp.reset()
-        assertEquals(100, ramp.tempo)
+        ramp.nudge(80)
+        assertEquals(80, ramp.tempo)
+        assertEquals(80, ramp.settings.startTempo)
     }
 
     @Test

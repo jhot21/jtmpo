@@ -82,16 +82,6 @@ class PracticeRamp(settings: PracticeSettings = PracticeSettings()) {
     }
 
     /**
-     * Moves the set point. While the session is at its start (not [begun]) the live tempo
-     * follows it; once begun, the live tempo takes it up on the next [reset].
-     */
-    fun setStartTempo(tempo: Int) {
-        val next = clamp(tempo)
-        settings = settings.copy(startTempo = next)
-        this.tempo = if (begun) clamp(this.tempo) else next
-    }
-
-    /**
      * A changed signature or pattern restarts the bar count, and so does turning the ramp on from
      * Off: the count was frozen while the grid ran on, so the next click is re-anchored as a
      * downbeat. Anything else keeps it.

@@ -294,20 +294,15 @@ class PracticeControllerTest {
         assertEquals(listOf("cpm:100"), out.calls)
         out.clear()
 
-        practice.setStartTempo(80)
-        assertEquals(80, practice.state.value.settings.startTempo)
-        assertEquals(100, practice.state.value.tempo)
-        assertTrue(out.calls.isEmpty())
-
         practice.pause()
         out.clear()
         practice.nudgeTempo(95)
         assertEquals(95, practice.state.value.tempo)
-        assertEquals(80, practice.state.value.settings.startTempo)
+        assertEquals(90, practice.state.value.settings.startTempo)
         assertTrue(out.calls.isEmpty())
 
         practice.reset()
-        assertEquals(80, practice.state.value.tempo)
+        assertEquals(90, practice.state.value.tempo)
         assertEquals(1, practice.state.value.bar)
     }
 

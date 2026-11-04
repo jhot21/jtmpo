@@ -123,15 +123,6 @@ class PracticeController(
         }
     }
 
-    /** The Start tempo row: never changes the live tempo once the session has begun. */
-    fun setStartTempo(tempo: Int) {
-        synchronized(lock) {
-            acted = true
-            ramp.setStartTempo(tempo)
-            publish()
-        }
-    }
-
     fun update(transform: (PracticeSettings) -> PracticeSettings) {
         synchronized(lock) {
             acted = true
