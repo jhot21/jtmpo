@@ -83,7 +83,8 @@ fun TempoDragControl(tempo: Int, onTempo: (Int) -> Unit, modifier: Modifier = Mo
                         Box(
                             Modifier
                                 .align(if (compact) Alignment.BottomStart else Alignment.TopStart)
-                                .offset(x = bubbleX)
+                                // requiredHeight centres the bubble on the empty compact box; lift it clear of the track.
+                                .offset(x = bubbleX, y = if (compact) -(BubbleHeight - 6.dp) / 2 else 0.dp)
                                 .width(bubbleWidth)
                                 .requiredHeight(BubbleHeight - 6.dp)
                                 .background(Accent, RoundedCornerShape(12.dp)),

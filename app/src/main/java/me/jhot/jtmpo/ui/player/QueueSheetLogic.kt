@@ -9,12 +9,21 @@ const val QUEUE_VISIBLE_ROWS = 5
 fun firstVisibleIndexFor(currentIndex: Int, visibleRows: Int = QUEUE_VISIBLE_ROWS): Int =
     (currentIndex - (visibleRows - 1)).coerceAtLeast(0)
 
-/** Half-stop height: handle, header, up to [visibleRows] rows (fewer when the setlist is shorter) and the nav-bar inset. */
+/** Half-stop height: handle, header and up to [visibleRows] rows (fewer when the setlist is shorter). */
 fun queuePeekHeight(
     handle: Dp,
     header: Dp,
     row: Dp,
     songCount: Int,
-    bottomInset: Dp,
     visibleRows: Int = QUEUE_VISIBLE_ROWS,
-): Dp = handle + header + row * minOf(songCount, visibleRows) + bottomInset
+): Dp = handle + header + row * minOf(songCount, visibleRows)
+
+/**
+ * Where to scroll the queue so the playing song is on screen, or null when it already is (or there is none).
+ * Scrolling only when needed keeps the list from jumping under the finger after a tap on a visible row.
+ */
+fun queueScrollTarget(currentIndex: Int, firstVisibleIndex: Int, fullyVisible: Boolean): Int? = when {
+    currentIndex < 0 || fullyVisible -> null
+    currentIndex < firstVisibleIndex -> currentIndex
+    else -> firstVisibleIndexFor(currentIndex)
+}

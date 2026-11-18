@@ -25,13 +25,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SheetValue
@@ -61,7 +57,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalResources
@@ -118,20 +113,22 @@ private fun PlayerContent(
     var headerPx by remember { mutableIntStateOf(0) }
     var rowPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    // Read once out here (see QueueSheetContent): the sheet must not consume insets while it moves.
-    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val topInset = WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding()
     val headerDp = if (headerPx > 0) with(density) { headerPx.toDp() } else 72.dp
     val rowDp = if (rowPx > 0) with(density) { rowPx.toDp() } else 56.dp
-    val peek = queuePeekHeight(SheetHandleHeight, headerDp, rowDp, entries.size, bottomInset)
+    val peek = queuePeekHeight(SheetHandleHeight, headerDp, rowDp, entries.size)
     val queueShown = sheetState.targetValue != SheetValue.Hidden
     val playerBottomPad by animateDpAsState(if (queueShown) peek else 0.dp, label = "playerBottomPad")
     BackHandler(enabled = queueShown) { scope.launch { sheetState.hide() } }
-    // At the half stop the playing song must be on screen: past the fifth row it becomes the last visible one. Keyed on
-    // the stop and the current entry only, so reordering or editing the list does not undo the user's own scrolling.
+    // At the half stop the playing song must be on screen. Keyed on the settled stop and the current entry only, so
+    // reordering or editing the list does not undo the user's own scrolling, and only scrolls when it is out of view.
     val currentIndex = entries.indexOfFirst { it.entryId == ui.entryId }
-    LaunchedEffect(sheetState.targetValue == SheetValue.PartiallyExpanded, ui.entryId) {
-        if (sheetState.targetValue == SheetValue.PartiallyExpanded) listState.animateScrollToItem(firstVisibleIndexFor(currentIndex))
+    LaunchedEffect(sheetState.currentValue == SheetValue.PartiallyExpanded, ui.entryId) {
+        if (sheetState.currentValue != SheetValue.PartiallyExpanded) return@LaunchedEffect
+        val info = listState.layoutInfo
+        val item = info.visibleItemsInfo.firstOrNull { it.index == currentIndex }
+        val fullyVisible = item != null && item.offset >= info.viewportStartOffset &&
+            item.offset + item.size <= info.viewportEndOffset
+        queueScrollTarget(currentIndex, listState.firstVisibleItemIndex, fullyVisible)?.let { listState.animateScrollToItem(it) }
     }
     var adding by remember { mutableStateOf(false) }
     var editingOther by remember { mutableStateOf<EffectiveSong?>(null) }
@@ -160,22 +157,24 @@ private fun PlayerContent(
         onDispose { graph.playerOpen.value = false }
     }
 
-    BoxWithConstraints(modifier.fillMaxSize()) {
+    // The app's Scaffold already pads this screen by the status and navigation bars, so the sheet needs no insets of
+    // its own; clipping keeps the hidden sheet from drawing into the navigation bar.
+    BoxWithConstraints(modifier.fillMaxSize().clipToBounds()) {
     val containerH = maxHeight
     // Fixed height: the full size, or less when the setlist is short. Material sizes a sheet to its content and only
     // slides it, so the list is given its own viewport below instead of the sheet changing height.
-    val sheetHeight = minOf(containerH - topInset, SheetHandleHeight + headerDp + rowDp * entries.size + bottomInset)
+    val sheetHeight = minOf(containerH, SheetHandleHeight + headerDp + rowDp * entries.size)
     // At half the step drag below moves the sheet (Material's own drag would expand it before the list scrolled).
     val half = sheetState.currentValue == SheetValue.PartiallyExpanded
-    val fullyHidden = sheetState.currentValue == SheetValue.Hidden && sheetState.targetValue == SheetValue.Hidden
     val stepDrag = if (half) Modifier.pointerInput(Unit) {
         var drag = 0f
+        val threshold = 16.dp.toPx()
         detectVerticalDragGestures(
             onDragStart = { drag = 0f },
             onVerticalDrag = { _, dy ->
                 drag += dy
-                if (drag < -40f) { drag = 0f; scope.launch { sheetState.expand() } }
-                else if (drag > 40f) { drag = 0f; scope.launch { sheetState.hide() } }
+                if (drag < -threshold) { drag = 0f; scope.launch { sheetState.expand() } }
+                else if (drag > threshold) { drag = 0f; scope.launch { sheetState.hide() } }
             },
         )
     } else Modifier
@@ -183,30 +182,25 @@ private fun PlayerContent(
         scaffoldState = scaffoldState,
         sheetPeekHeight = peek,
         sheetSwipeEnabled = !half,
-        // Fully hidden, the top edge of the sheet would still show at the bottom of the screen, so draw nothing then.
-        sheetContainerColor = if (fullyHidden) Color.Transparent else BottomSheetDefaults.ContainerColor,
-        sheetShadowElevation = if (fullyHidden) 0.dp else BottomSheetDefaults.Elevation,
         sheetDragHandle = {
             Box(Modifier.fillMaxWidth().height(SheetHandleHeight).then(stepDrag), contentAlignment = Alignment.Center) {
-                if (!fullyHidden) Box(Modifier.size(width = 32.dp, height = 4.dp).background(TextSecondary, CircleShape))
+                Box(Modifier.size(width = 32.dp, height = 4.dp).background(TextSecondary, CircleShape))
             }
         },
         sheetContent = {
             // Read here so only this lambda recomposes while the sheet is dragged.
             val offsetPx = runCatching { sheetState.requireOffset() }.getOrDefault(with(density) { containerH.toPx() })
             val visible = with(density) { (containerH.toPx() - offsetPx).toDp() }
-            val listHeight = (visible - SheetHandleHeight - headerDp - bottomInset).coerceIn(0.dp, rowDp * entries.size)
+            val listHeight = (visible - SheetHandleHeight - headerDp).coerceIn(0.dp, rowDp * entries.size)
             Box(Modifier.height(sheetHeight - SheetHandleHeight)) {
                 QueueSheetContent(
                     setlistName = ui.setlistName,
                     entries = entries,
                     currentEntryId = ui.entryId,
-                    snackbar = snackbar,
                     listState = listState,
                     listHeight = listHeight,
-                    bottomInset = bottomInset,
                     headerModifier = stepDrag,
-                    onMeasured = { h, r -> headerPx = h; rowPx = r },
+                    onMeasured = { h, r -> if (h > 0) headerPx = h; if (r > 0) rowPx = r },
                     onSelect = vm::select,
                     onMove = vm::moveEntry,
                     onEdit = { entry ->
@@ -268,9 +262,10 @@ private fun PlayerContent(
                 UpNext(entries, ui, onOpen = { scope.launch { sheetState.partialExpand() } })
             }
         }
-        JtmpoSnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
     }
+    // One host, drawn above the sheet, so "songs added" and override notices are visible at half.
+    JtmpoSnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
 
     chipEditing?.let { sheetVm ->

@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import me.jhot.jtmpo.R
 import me.jhot.jtmpo.domain.EffectiveSong
 import me.jhot.jtmpo.ui.components.EntryRowContent
-import me.jhot.jtmpo.ui.components.JtmpoSnackbarHost
 import me.jhot.jtmpo.ui.theme.TextSecondary
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -44,18 +42,16 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
  *
  * The sheet has a fixed height and [listHeight] is how much of it the list may use: the caller derives it from the
  * sheet's drag offset, so at the half stop the list is exactly five rows tall and scrolls by itself, and at full
- * height it fills the sheet. [bottomInset] is read once by the caller; never use navigationBarsPadding() in here,
- * the sheet's own movement would change it mid-drag.
+ * height it fills the sheet. Never use navigationBarsPadding() in here: the sheet's own movement would change it
+ * mid-drag (the player's Scaffold already pads the screen by the system bars).
  */
 @Composable
 fun QueueSheetContent(
     setlistName: String,
     entries: List<EffectiveSong>,
     currentEntryId: Long?,
-    snackbar: SnackbarHostState,
     listState: LazyListState,
     listHeight: Dp,
-    bottomInset: Dp,
     headerModifier: Modifier,
     onMeasured: (headerPx: Int, rowPx: Int) -> Unit,
     onSelect: (Int) -> Unit,
@@ -70,13 +66,13 @@ fun QueueSheetContent(
     var headerPx by remember { mutableIntStateOf(0) }
     var rowPx by remember { mutableIntStateOf(0) }
     LaunchedEffect(entries) { if (!dragging) local = entries }
-    LaunchedEffect(headerPx, rowPx) { if (headerPx > 0 && rowPx > 0) onMeasured(headerPx, rowPx) }
+    LaunchedEffect(headerPx, rowPx) { onMeasured(headerPx, rowPx) }
     val reorderState = rememberReorderableLazyListState(listState) { from, to ->
         local = local.toMutableList().apply { add(to.index, removeAt(from.index)) }
     }
 
     Box(Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth().padding(bottom = bottomInset)) {
+        Column(Modifier.fillMaxWidth()) {
             Row(
                 headerModifier.fillMaxWidth().onSizeChanged { headerPx = it.height }
                     .padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
@@ -118,6 +114,5 @@ fun QueueSheetContent(
                 }
             }
         }
-        JtmpoSnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
 }
