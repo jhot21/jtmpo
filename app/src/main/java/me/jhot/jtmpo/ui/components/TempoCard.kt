@@ -1,6 +1,8 @@
 package me.jhot.jtmpo.ui.components
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -12,6 +14,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +42,7 @@ fun TempoCard(
     pulses: SharedFlow<Unit>,
     onTempo: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
     extra: @Composable ColumnScope.() -> Unit = {},
 ) {
     val pulse = remember { Animatable(0f) }
@@ -49,17 +53,20 @@ fun TempoCard(
             pulse.animateTo(0f, tween(durationMillis = 160))
         }
     }
+    // Compact is the player with its setlist open: a smaller number and tighter padding, animated.
+    val numberSize by animateFloatAsState(if (compact) 48f else 84f, label = "tempoSize")
+    val verticalPadding by animateDpAsState(if (compact) 6.dp else 16.dp, label = "tempoPadding")
     Surface(
         modifier.fillMaxWidth().widthIn(max = 480.dp),
         color = SurfaceCard,
         shape = MaterialTheme.shapes.large,
     ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = verticalPadding), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 "$tempo",
-                fontSize = 84.sp,
+                fontSize = numberSize.sp,
                 fontWeight = FontWeight.Bold,
-                lineHeight = 88.sp,
+                lineHeight = (numberSize + 4f).sp,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.graphicsLayer {
                     val p = pulse.value
@@ -75,7 +82,7 @@ fun TempoCard(
                 letterSpacing = 2.sp,
             )
             extra()
-            TempoDragControl(tempo, onTempo, Modifier.padding(top = 4.dp))
+            TempoDragControl(tempo, onTempo, Modifier.padding(top = 4.dp), compact = compact)
         }
     }
 }

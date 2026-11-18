@@ -226,7 +226,7 @@ private fun PlayerContent(
                 Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Header(ui, onBack)
+                Header(ui, onBack, compact = queueShown)
                 if (!ui.hasSong) {
                     Text(
                         "Nothing loaded. Open a setlist and tap a song.",
@@ -235,8 +235,9 @@ private fun PlayerContent(
                         modifier = Modifier.padding(top = 48.dp),
                     )
                 } else {
-                    SongInfo(ui)
+                    SongInfo(ui, compact = queueShown)
                     TempoCard(
+                        compact = queueShown,
                         tempo = ui.tempo,
                         unitLabel = ui.tempoUnit,
                         pulses = pulses,
@@ -244,6 +245,7 @@ private fun PlayerContent(
                     )
                     Chips(
                         ui,
+                        compact = queueShown,
                         onEdit = { if (editUi?.loaded == true) chipEditing = editVm },
                     )
                     if (ui.unsaved && editVm != null) {
@@ -261,7 +263,7 @@ private fun PlayerContent(
                 }
             }
             // Outside the scroll area so it sits right above the sheet handle on tall screens.
-            if (ui.hasSong) Transport(ui, vm)
+            if (ui.hasSong) Transport(ui, vm, compact = queueShown)
             AnimatedVisibility(!queueShown) {
                 UpNext(entries, ui, onOpen = { scope.launch { sheetState.partialExpand() } })
             }
@@ -300,8 +302,9 @@ private fun PlayerContent(
 }
 
 @Composable
-private fun Header(ui: PlayerUi, onBack: () -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 64.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun Header(ui: PlayerUi, onBack: () -> Unit, compact: Boolean) {
+    val minHeight by animateDpAsState(if (compact) 48.dp else 64.dp, label = "headerHeight")
+    Row(Modifier.fillMaxWidth().heightIn(min = minHeight), verticalAlignment = Alignment.CenterVertically) {
         val closeLabel = stringResource(R.string.close_player)
         IconButton(onBack, Modifier.semantics { contentDescription = closeLabel }) { Icon(painterResource(R.drawable.ic_chevron_down), null, Modifier.size(32.dp)) }
         Text(
@@ -319,8 +322,9 @@ private fun Header(ui: PlayerUi, onBack: () -> Unit) {
 }
 
 @Composable
-private fun SongInfo(ui: PlayerUi) {
-    Column(Modifier.padding(vertical = 16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun SongInfo(ui: PlayerUi, compact: Boolean) {
+    val verticalPadding by animateDpAsState(if (compact) 4.dp else 16.dp, label = "songInfoPadding")
+    Column(Modifier.padding(vertical = verticalPadding).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             ui.title,
             style = MaterialTheme.typography.headlineSmall,
@@ -329,24 +333,30 @@ private fun SongInfo(ui: PlayerUi) {
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        ui.artist?.let { Text(it, color = TextSecondary, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-        ui.notes?.let {
-            Text(
-                it,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary,
-                textAlign = TextAlign.Center,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 6.dp),
-            )
+        // Artist and notes drop out while the setlist is open, to leave room for the controls.
+        AnimatedVisibility(!compact) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                ui.artist?.let { Text(it, color = TextSecondary, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                ui.notes?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary,
+                        textAlign = TextAlign.Center,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun Chips(ui: PlayerUi, onEdit: () -> Unit) {
-    Row(Modifier.padding(vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun Chips(ui: PlayerUi, compact: Boolean, onEdit: () -> Unit) {
+    val verticalPadding by animateDpAsState(if (compact) 2.dp else 14.dp, label = "chipsPadding")
+    Row(Modifier.padding(vertical = verticalPadding), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         val sigLabel = stringResource(R.string.edit_time_signature, ui.timeSignature)
         AssistChip(onClick = onEdit, label = { Text(ui.timeSignature) }, modifier = Modifier.semantics { contentDescription = sigLabel })
         val patLabel = stringResource(R.string.edit_click_pattern, ui.patternLabel)
@@ -386,9 +396,10 @@ private fun UnsavedBar(enabled: Boolean, onSaveSetlist: () -> Unit, onSaveLibrar
 }
 
 @Composable
-private fun Transport(ui: PlayerUi, vm: PlayerViewModel) {
+private fun Transport(ui: PlayerUi, vm: PlayerViewModel, compact: Boolean) {
+    val verticalPadding by animateDpAsState(if (compact) 8.dp else 16.dp, label = "transportPadding")
     Row(
-        Modifier.fillMaxWidth().widthIn(max = 480.dp).padding(vertical = 16.dp),
+        Modifier.fillMaxWidth().widthIn(max = 480.dp).padding(vertical = verticalPadding),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {

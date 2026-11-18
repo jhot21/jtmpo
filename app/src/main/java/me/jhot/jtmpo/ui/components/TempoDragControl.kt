@@ -1,5 +1,6 @@
 package me.jhot.jtmpo.ui.components
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -45,7 +47,7 @@ private val BubbleHeight = 44.dp
  * thumb never hides it. Out-of-range results are clamped here; [onTempo] only sees valid values.
  */
 @Composable
-fun TempoDragControl(tempo: Int, onTempo: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun TempoDragControl(tempo: Int, onTempo: (Int) -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
     val haptic = LocalHapticFeedback.current
     val currentTempo by rememberUpdatedState(tempo)
     val currentOnTempo by rememberUpdatedState(onTempo)
@@ -70,17 +72,20 @@ fun TempoDragControl(tempo: Int, onTempo: (Int) -> Unit, modifier: Modifier = Mo
             val thumbX = with(density) { ((trackWidthPx - thumbPx) * fraction).toDp() }
 
             Column {
-                // Reserved height so the bubble never shifts the layout or clips.
-                Box(Modifier.fillMaxWidth().height(BubbleHeight)) {
+                // Reserved height so the bubble never shifts the layout or clips. Compact reserves none: the bubble
+                // then floats over the space above the track (the tempo label) while it is dragged.
+                val reserved by animateDpAsState(if (compact) 0.dp else BubbleHeight, label = "bubbleSpace")
+                Box(Modifier.fillMaxWidth().height(reserved)) {
                     if (dragging) {
                         val bubbleWidth = 64.dp
                         val bubbleX = (thumbX + ThumbSize / 2 - bubbleWidth / 2)
                             .coerceIn(0.dp, trackWidth - bubbleWidth)
                         Box(
                             Modifier
+                                .align(if (compact) Alignment.BottomStart else Alignment.TopStart)
                                 .offset(x = bubbleX)
                                 .width(bubbleWidth)
-                                .height(BubbleHeight - 6.dp)
+                                .requiredHeight(BubbleHeight - 6.dp)
                                 .background(Accent, RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
