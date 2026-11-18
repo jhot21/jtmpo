@@ -127,6 +127,12 @@ private fun PlayerContent(
     val queueShown = sheetState.targetValue != SheetValue.Hidden
     val playerBottomPad by animateDpAsState(if (queueShown) peek else 0.dp, label = "playerBottomPad")
     BackHandler(enabled = queueShown) { scope.launch { sheetState.hide() } }
+    // At the half stop the playing song must be on screen: past the fifth row it becomes the last visible one. Keyed on
+    // the stop and the current entry only, so reordering or editing the list does not undo the user's own scrolling.
+    val currentIndex = entries.indexOfFirst { it.entryId == ui.entryId }
+    LaunchedEffect(sheetState.targetValue == SheetValue.PartiallyExpanded, ui.entryId) {
+        if (sheetState.targetValue == SheetValue.PartiallyExpanded) listState.animateScrollToItem(firstVisibleIndexFor(currentIndex))
+    }
     var adding by remember { mutableStateOf(false) }
     var editingOther by remember { mutableStateOf<EffectiveSong?>(null) }
     // Bumped on every open so each sheet gets a fresh view model (no stale draft, no leftover "finished").
