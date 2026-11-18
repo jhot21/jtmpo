@@ -6,6 +6,9 @@ import androidx.compose.ui.unit.dp
 /** The three stops of the player's queue sheet. */
 enum class QueueStop { Collapsed, Half, Full }
 
+/** What the player's sheet is showing: the setlist, or the full notes of the current song. */
+enum class SheetContentMode { Queue, Notes }
+
 /** Height of the sheet's drag handle row. */
 val QueueHandleHeight = 24.dp
 

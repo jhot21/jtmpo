@@ -38,6 +38,8 @@
     <string name="pulse_lead_value">%1$d ms</string>
     <string name="up_next">Up next</string>
     <string name="open_setlist">Open the setlist</string>
+    <string name="notes_title">Notes</string>
+    <string name="show_full_notes">Show the full notes</string>
     <string name="add_from_library">Add from library</string>
     <string name="edit_time_signature">Time signature %s, tap to edit</string>
     <string name="edit_click_pattern">Click pattern %s, tap to edit</string>

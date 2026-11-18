@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
@@ -122,6 +123,11 @@ private fun PlayerContent(
     // The queue is a non-modal sheet with three stops: collapsed (the "Up next" bar), half (five rows) and full. It
     // follows the finger, and the player stays usable at half.
     val sheet = remember { AnchoredDraggableState(QueueStop.Collapsed) }
+    // The same sheet also shows the full notes of the current song (opened by tapping truncated notes). It goes back to
+    // the setlist once it is collapsed again.
+    var mode by remember { mutableStateOf(SheetContentMode.Queue) }
+    var notesBodyPx by remember { mutableIntStateOf(0) }
+    LaunchedEffect(sheet.settledValue) { if (sheet.settledValue == QueueStop.Collapsed) mode = SheetContentMode.Queue }
     val listState = rememberLazyListState()
     var headerPx by remember { mutableIntStateOf(0) }
     var rowPx by remember { mutableIntStateOf(0) }
@@ -130,11 +136,15 @@ private fun PlayerContent(
     val rowDp = if (rowPx > 0) with(density) { rowPx.toDp() } else 56.dp
     val peek = queuePeekHeight(QueueHandleHeight, headerDp, rowDp, entries.size)
     BackHandler(enabled = sheet.currentValue != QueueStop.Collapsed) { scope.launch { sheet.animateTo(QueueStop.Collapsed) } }
+    // The next song may have no notes: nothing left to show, so close the notes sheet.
+    LaunchedEffect(mode, ui.notes) {
+        if (mode == SheetContentMode.Notes && ui.notes == null) sheet.animateTo(QueueStop.Collapsed)
+    }
     // At the half stop the playing song must be on screen. Keyed on the settled stop and the current entry only, so
     // reordering or editing the list does not undo the user's own scrolling, and only scrolls when it is out of view.
     val currentIndex = entries.indexOfFirst { it.entryId == ui.entryId }
     LaunchedEffect(sheet.settledValue == QueueStop.Half, ui.entryId) {
-        if (sheet.settledValue != QueueStop.Half) return@LaunchedEffect
+        if (sheet.settledValue != QueueStop.Half || mode != SheetContentMode.Queue) return@LaunchedEffect
         val info = listState.layoutInfo
         val item = info.visibleItemsInfo.firstOrNull { it.index == currentIndex }
         val fullyVisible = item != null && item.offset >= info.viewportStartOffset &&
@@ -173,9 +183,15 @@ private fun PlayerContent(
     BoxWithConstraints(modifier.fillMaxSize().clipToBounds()) {
         val containerPx = constraints.maxHeight.toFloat()
         // Fixed height: the full size, or less when the setlist is short.
-        val sheetHeight = minOf(maxHeight, QueueHandleHeight + headerDp + rowDp * entries.size)
+        // The setlist sheet is as tall as its rows (up to the screen); the notes sheet as tall as the notes, but at least
+        // as tall as the setlist's half stop and at most the screen. Same half stop in both.
+        val notesPeek = queuePeekHeight(QueueHandleHeight, headerDp, rowDp, QUEUE_VISIBLE_ROWS)
+        val notesBodyDp = with(density) { notesBodyPx.toDp() }
+        val sheetHeight = if (mode == SheetContentMode.Notes) {
+            minOf(maxHeight, maxOf(notesPeek, QueueHandleHeight + headerDp + notesBodyDp))
+        } else minOf(maxHeight, QueueHandleHeight + headerDp + rowDp * entries.size)
         val collapsedPx = with(density) { (QueueHandleHeight + QueueCollapsedLabelHeight).toPx() }
-        val halfPx = with(density) { minOf(peek, sheetHeight).toPx() }
+        val halfPx = with(density) { minOf(if (mode == SheetContentMode.Notes) notesPeek else peek, sheetHeight).toPx() }
         val fullPx = with(density) { sheetHeight.toPx() }
         val gapPx = with(density) { 20.dp.toPx() }
         val minFlingVelocity = with(density) { 500.dp.toPx() }
@@ -250,7 +266,18 @@ private fun PlayerContent(
                                 modifier = Modifier.padding(top = 48.dp),
                             )
                         } else {
-                            SongInfo(ui, progress = ::openProgress)
+                            SongInfo(
+                                ui,
+                                progress = ::openProgress,
+                                onNotesTap = {
+                                    mode = SheetContentMode.Notes
+                                    scope.launch {
+                                        // Let the sheet's new stops be applied before it starts moving.
+                                        withFrameNanos { }
+                                        sheet.animateTo(QueueStop.Half)
+                                    }
+                                },
+                            )
                             // The card is at most its natural size and takes whatever the other pieces leave when that
                             // is less, so it only ever shrinks as the sheet opens (never grows). The floor keeps it from
                             // collapsing when everything else overflows and the player scrolls.
@@ -314,6 +341,9 @@ private fun PlayerContent(
                 openProgress = ::openProgress,
                 collapsedLabel = collapsedLabel,
                 onOpen = { scope.launch { sheet.animateTo(QueueStop.Half) } },
+                notes = if (mode == SheetContentMode.Notes) ui.notes else null,
+                notesSubtitle = ui.title,
+                onNotesMeasured = { notesBodyPx = it },
                 onMeasured = { h, r -> if (h > 0) headerPx = h; if (r > 0) rowPx = r },
                 onSelect = vm::select,
                 onMove = vm::moveEntry,
@@ -395,7 +425,7 @@ private fun Header(ui: PlayerUi, onBack: () -> Unit, progress: () -> Float) {
 }
 
 @Composable
-private fun SongInfo(ui: PlayerUi, progress: () -> Float) {
+private fun SongInfo(ui: PlayerUi, progress: () -> Float, onNotesTap: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().verticalPaddingLerp(16.dp, 4.dp, progress),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -423,15 +453,21 @@ private fun SongInfo(ui: PlayerUi, progress: () -> Float) {
             ) {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     ui.artist?.let { Text(it, color = TextSecondary, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                    ui.notes?.let {
+                    ui.notes?.let { notes ->
+                        // Only notes that are cut off are tappable; a tap opens them in full in the sheet.
+                        var truncated by remember(notes) { mutableStateOf(false) }
+                        val showFull = stringResource(R.string.show_full_notes)
                         Text(
-                            it,
+                            notes,
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary,
                             textAlign = TextAlign.Center,
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = 6.dp),
+                            onTextLayout = { truncated = it.hasVisualOverflow },
+                            modifier = Modifier
+                                .clickable(enabled = truncated, onClickLabel = showFull, onClick = onNotesTap)
+                                .padding(top = 6.dp),
                         )
                     }
                 }

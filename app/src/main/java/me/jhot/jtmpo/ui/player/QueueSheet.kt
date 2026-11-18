@@ -5,6 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -65,6 +68,9 @@ fun QueueSheetContent(
     openProgress: () -> Float,
     collapsedLabel: String,
     onOpen: () -> Unit,
+    notes: String?,
+    notesSubtitle: String,
+    onNotesMeasured: (heightPx: Int) -> Unit,
     onMeasured: (headerPx: Int, rowPx: Int) -> Unit,
     onSelect: (Int) -> Unit,
     onMove: (from: Int, to: Int) -> Unit,
@@ -78,7 +84,7 @@ fun QueueSheetContent(
     var headerPx by remember { mutableIntStateOf(0) }
     var rowPx by remember { mutableIntStateOf(0) }
     LaunchedEffect(entries) { if (!dragging) local = entries }
-    LaunchedEffect(headerPx, rowPx) { onMeasured(headerPx, rowPx) }
+    LaunchedEffect(headerPx, rowPx, notes == null) { if (notes == null) onMeasured(headerPx, rowPx) }
     val reorderState = rememberReorderableLazyListState(listState) { from, to ->
         local = local.toMutableList().apply { add(to.index, removeAt(from.index)) }
     }
@@ -96,15 +102,24 @@ fun QueueSheetContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text(setlistName, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        pluralStringResource(R.plurals.song_count, entries.size, entries.size),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
-                    )
+                if (notes == null) {
+                    Column(Modifier.weight(1f)) {
+                        Text(setlistName, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            pluralStringResource(R.plurals.song_count, entries.size, entries.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary,
+                        )
+                    }
+                    FilledTonalButton(onAdd) { Text(stringResource(R.string.add_from_library)) }
+                } else {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.notes_title), style = MaterialTheme.typography.titleLarge, maxLines = 1)
+                        Text(notesSubtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    // Same height as the setlist header (which carries a button), so the sheet's stops do not move.
+                    Spacer(Modifier.height(48.dp))
                 }
-                FilledTonalButton(onAdd) { Text(stringResource(R.string.add_from_library)) }
             }
             // The collapsed "Up next" bar. Drawn over the header, so a tap on it never reaches "Add from library".
             val openLabel = stringResource(R.string.open_setlist)
@@ -126,7 +141,18 @@ fun QueueSheetContent(
                 )
             }
         }
-        LazyColumn(Modifier.height(listHeight), state = listState) {
+        if (notes != null) {
+            val scroll = rememberScrollState()
+            LaunchedEffect(notes) { scroll.scrollTo(0) }
+            Column(Modifier.height(listHeight).verticalScroll(scroll)) {
+                Text(
+                    notes,
+                    Modifier.fillMaxWidth().onSizeChanged { onNotesMeasured(it.height) }
+                        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+        } else LazyColumn(Modifier.height(listHeight), state = listState) {
             itemsIndexed(local, key = { _, it -> it.entryId }) { index, entry ->
                 ReorderableItem(reorderState, key = entry.entryId) {
                     EntryRowContent(

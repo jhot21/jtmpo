@@ -123,6 +123,7 @@ Use the demo library (Friday Night Set, 10 songs) and try each item at the defau
 | [ ] | H7 Edit and add | From the sheet tap a row's pencil, then "Add from library". | The edit sheet and the add sheet open over the queue as before; closing them leaves the queue where it was. | |
 | [ ] | H8 Back and unsaved change | Make an unsaved tempo change, open the sheet, then press Back. | Back hides the sheet first, and a second Back leaves the player. The unsaved bar is visible at half (at 1.3x scroll the player to reach the save buttons). | |
 | [ ] | H9 Short setlist | Open a setlist with fewer than five songs (add one if needed) and open the sheet. | The sheet is only as tall as its songs, no empty space. | |
+| [ ] | H10 Full notes | Use a song whose notes are longer than three lines (edit one in the edit sheet) and open the player. Tap the cut-off notes. Then try a song with short notes. | The cut-off notes open in full in the sheet (header "Notes" with the song title) at the same half height as the setlist, with the compact player above; it scrolls at half, drags to full, and collapsing returns to "Up next". Short notes are not tappable and nothing happens when tapped. | |
 
 ## Sign-off
 
