@@ -1,5 +1,11 @@
 package me.jhot.jtmpo.ui.player
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -440,20 +446,31 @@ private fun SongInfo(ui: PlayerUi, progress: () -> Float, onNotesTap: () -> Unit
             overflow = TextOverflow.Ellipsis,
         )
         // Artist and notes slide up behind the title and fade out as the setlist opens, taking their height with them.
-        if (ui.artist != null || ui.notes != null) {
-            Box(
-                Modifier.fillMaxWidth().clipToBounds()
-                    .layout { measurable, constraints ->
-                        val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
-                        val p = slideProgress(progress())
-                        val h = (placeable.height * (1f - p)).roundToInt()
-                        layout(placeable.width, h) { placeable.place(0, h - placeable.height) }
-                    }
-                    .graphicsLayer { alpha = 1f - slideProgress(progress()) },
-            ) {
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    ui.artist?.let { Text(it, color = TextSecondary, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                    ui.notes?.let { notes ->
+        // When the song changes, an artist or notes line that appears or disappears slides the same way (each on its own),
+        // and the tempo card follows because this block's height is part of the column. The last text is kept while a line
+        // slides out, so it does not blank before it is gone.
+        var shownArtist by remember { mutableStateOf(ui.artist) }
+        var shownNotes by remember { mutableStateOf(ui.notes) }
+        if (ui.artist != null) shownArtist = ui.artist
+        if (ui.notes != null) shownNotes = ui.notes
+        val enter = fadeIn(tween(SongInfoSlideMillis)) + expandVertically(tween(SongInfoSlideMillis), expandFrom = Alignment.Top)
+        val exit = fadeOut(tween(SongInfoSlideMillis)) + shrinkVertically(tween(SongInfoSlideMillis), shrinkTowards = Alignment.Top)
+        Box(
+            Modifier.fillMaxWidth().clipToBounds()
+                .layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+                    val p = slideProgress(progress())
+                    val h = (placeable.height * (1f - p)).roundToInt()
+                    layout(placeable.width, h) { placeable.place(0, h - placeable.height) }
+                }
+                .graphicsLayer { alpha = 1f - slideProgress(progress()) },
+        ) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                AnimatedVisibility(ui.artist != null, enter = enter, exit = exit) {
+                    shownArtist?.let { Text(it, color = TextSecondary, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                }
+                AnimatedVisibility(ui.notes != null, enter = enter, exit = exit) {
+                    shownNotes?.let { notes ->
                         // Only notes that are cut off are tappable; a tap opens them in full in the sheet.
                         var truncated by remember(notes) { mutableStateOf(false) }
                         val showFull = stringResource(R.string.show_full_notes)
@@ -475,6 +492,8 @@ private fun SongInfo(ui: PlayerUi, progress: () -> Float, onNotesTap: () -> Unit
         }
     }
 }
+
+private const val SongInfoSlideMillis = 350
 
 @Composable
 private fun Chips(ui: PlayerUi, progress: () -> Float, onEdit: () -> Unit) {
