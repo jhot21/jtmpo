@@ -21,7 +21,23 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberStandardBottomSheetState
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledIconButton
@@ -45,6 +61,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalResources
@@ -71,12 +88,15 @@ import me.jhot.jtmpo.ui.setlists.AddSongsSheet
 import me.jhot.jtmpo.ui.theme.SurfaceCard
 import me.jhot.jtmpo.ui.theme.TextSecondary
 
+private val SheetHandleHeight = 24.dp
+
 @Composable
 fun PlayerScreen(graph: AppGraph, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val vm: PlayerViewModel = viewModel(factory = PlayerViewModel.Factory(graph.playback, graph.repository, graph.settings))
     PlayerContent(vm, graph, graph.audioOutput.pulses, onBack, modifier)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlayerContent(
     vm: PlayerViewModel,
@@ -91,7 +111,22 @@ private fun PlayerContent(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
-    var queueOpen by remember { mutableStateOf(false) }
+    // The queue is a non-modal sheet: hidden (the "Up next" bar), half (5 rows) or full. The player stays usable at half.
+    val sheetState = rememberStandardBottomSheetState(initialValue = SheetValue.Hidden, skipHiddenState = false)
+    val scaffoldState = rememberBottomSheetScaffoldState(sheetState)
+    val listState = rememberLazyListState()
+    var headerPx by remember { mutableIntStateOf(0) }
+    var rowPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    // Read once out here (see QueueSheetContent): the sheet must not consume insets while it moves.
+    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val topInset = WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding()
+    val headerDp = if (headerPx > 0) with(density) { headerPx.toDp() } else 72.dp
+    val rowDp = if (rowPx > 0) with(density) { rowPx.toDp() } else 56.dp
+    val peek = queuePeekHeight(SheetHandleHeight, headerDp, rowDp, entries.size, bottomInset)
+    val queueShown = sheetState.targetValue != SheetValue.Hidden
+    val playerBottomPad by animateDpAsState(if (queueShown) peek else 0.dp, label = "playerBottomPad")
+    BackHandler(enabled = queueShown) { scope.launch { sheetState.hide() } }
     var adding by remember { mutableStateOf(false) }
     var editingOther by remember { mutableStateOf<EffectiveSong?>(null) }
     // Bumped on every open so each sheet gets a fresh view model (no stale draft, no leftover "finished").
@@ -119,8 +154,68 @@ private fun PlayerContent(
         onDispose { graph.playerOpen.value = false }
     }
 
-    Box(modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
+    val containerH = maxHeight
+    // Fixed height: the full size, or less when the setlist is short. Material sizes a sheet to its content and only
+    // slides it, so the list is given its own viewport below instead of the sheet changing height.
+    val sheetHeight = minOf(containerH - topInset, SheetHandleHeight + headerDp + rowDp * entries.size + bottomInset)
+    // At half the step drag below moves the sheet (Material's own drag would expand it before the list scrolled).
+    val half = sheetState.currentValue == SheetValue.PartiallyExpanded
+    val fullyHidden = sheetState.currentValue == SheetValue.Hidden && sheetState.targetValue == SheetValue.Hidden
+    val stepDrag = if (half) Modifier.pointerInput(Unit) {
+        var drag = 0f
+        detectVerticalDragGestures(
+            onDragStart = { drag = 0f },
+            onVerticalDrag = { _, dy ->
+                drag += dy
+                if (drag < -40f) { drag = 0f; scope.launch { sheetState.expand() } }
+                else if (drag > 40f) { drag = 0f; scope.launch { sheetState.hide() } }
+            },
+        )
+    } else Modifier
+    BottomSheetScaffold(
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = peek,
+        sheetSwipeEnabled = !half,
+        // Fully hidden, the top edge of the sheet would still show at the bottom of the screen, so draw nothing then.
+        sheetContainerColor = if (fullyHidden) Color.Transparent else BottomSheetDefaults.ContainerColor,
+        sheetShadowElevation = if (fullyHidden) 0.dp else BottomSheetDefaults.Elevation,
+        sheetDragHandle = {
+            Box(Modifier.fillMaxWidth().height(SheetHandleHeight).then(stepDrag), contentAlignment = Alignment.Center) {
+                if (!fullyHidden) Box(Modifier.size(width = 32.dp, height = 4.dp).background(TextSecondary, CircleShape))
+            }
+        },
+        sheetContent = {
+            // Read here so only this lambda recomposes while the sheet is dragged.
+            val offsetPx = runCatching { sheetState.requireOffset() }.getOrDefault(with(density) { containerH.toPx() })
+            val visible = with(density) { (containerH.toPx() - offsetPx).toDp() }
+            val listHeight = (visible - SheetHandleHeight - headerDp - bottomInset).coerceIn(0.dp, rowDp * entries.size)
+            Box(Modifier.height(sheetHeight - SheetHandleHeight)) {
+                QueueSheetContent(
+                    setlistName = ui.setlistName,
+                    entries = entries,
+                    currentEntryId = ui.entryId,
+                    snackbar = snackbar,
+                    listState = listState,
+                    listHeight = listHeight,
+                    bottomInset = bottomInset,
+                    headerModifier = stepDrag,
+                    onMeasured = { h, r -> headerPx = h; rowPx = r },
+                    onSelect = vm::select,
+                    onMove = vm::moveEntry,
+                    onEdit = { entry ->
+                        // The current song is edited through the player's own view model, so the tempo drag,
+                        // the chips and the pencil all share one draft.
+                        if (entry.entryId == ui.entryId && editUi?.loaded == true) chipEditing = editVm
+                        else { otherOpens++; editingOther = entry }
+                    },
+                    onAdd = { adding = true },
+                )
+            }
+        },
+    ) {
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(bottom = playerBottomPad), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(
                 Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -161,32 +256,17 @@ private fun PlayerContent(
             }
             // Outside the scroll area so it sits right above the sheet handle on tall screens.
             if (ui.hasSong) Transport(ui, vm)
-            UpNext(entries, ui, onOpen = { queueOpen = true })
+            AnimatedVisibility(!queueShown) {
+                UpNext(entries, ui, onOpen = { scope.launch { sheetState.partialExpand() } })
+            }
         }
         JtmpoSnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+    }
+    }
     }
 
     chipEditing?.let { sheetVm ->
         EditSongSheet(sheetVm, onClose = { chipEditing = null; generation++ })
-    }
-
-    if (queueOpen) {
-        QueueSheet(
-            setlistName = ui.setlistName,
-            entries = entries,
-            currentEntryId = ui.entryId,
-            snackbar = snackbar,
-            onSelect = vm::select,
-            onMove = vm::moveEntry,
-            onEdit = { entry ->
-                // The current song is edited through the player's own view model, so the tempo drag,
-                // the chips and the pencil all share one draft.
-                if (entry.entryId == ui.entryId && editUi?.loaded == true) chipEditing = editVm
-                else { otherOpens++; editingOther = entry }
-            },
-            onAdd = { adding = true },
-            onDismiss = { queueOpen = false },
-        )
     }
 
     editingOther?.let { entry ->
