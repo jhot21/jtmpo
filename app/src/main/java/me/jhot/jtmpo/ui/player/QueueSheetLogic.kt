@@ -1,6 +1,16 @@
 package me.jhot.jtmpo.ui.player
 
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+
+/** The three stops of the player's queue sheet. */
+enum class QueueStop { Collapsed, Half, Full }
+
+/** Height of the sheet's drag handle row. */
+val QueueHandleHeight = 24.dp
+
+/** Height of the collapsed "Up next" label below the handle: the collapsed sheet shows handle + label. */
+val QueueCollapsedLabelHeight = 36.dp
 
 /** How many setlist rows the queue sheet shows at its half stop. */
 const val QUEUE_VISIBLE_ROWS = 5

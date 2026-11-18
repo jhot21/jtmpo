@@ -4,6 +4,9 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,36 +56,54 @@ fun TempoCard(
             pulse.animateTo(0f, tween(durationMillis = 160))
         }
     }
-    // Compact is the player with its setlist open: a smaller number and tighter padding, animated.
-    val numberSize by animateFloatAsState(if (compact) 48f else 84f, label = "tempoSize")
+    // Compact is the player with its setlist open. The caller may give the card all the height that is left (a
+    // weighted modifier); then the number grows with that room, up to its full size, and the content is centred,
+    // so the card never leaves an empty gap. Without bounded height it is simply small.
     val verticalPadding by animateDpAsState(if (compact) 6.dp else 16.dp, label = "tempoPadding")
     Surface(
         modifier.fillMaxWidth().widthIn(max = 480.dp),
         color = SurfaceCard,
         shape = MaterialTheme.shapes.large,
     ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = verticalPadding), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "$tempo",
-                fontSize = numberSize.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = (numberSize + 4f).sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.graphicsLayer {
-                    val p = pulse.value
-                    scaleX = 1f + 0.08f * p
-                    scaleY = 1f + 0.08f * p
-                    alpha = 0.72f + 0.28f * p
-                },
-            )
-            Text(
-                "${stringResource(R.string.bpm)} $unitLabel".trim(),
-                style = MaterialTheme.typography.labelMedium,
-                color = TextSecondary,
-                letterSpacing = 2.sp,
-            )
-            extra()
-            TempoDragControl(tempo, onTempo, Modifier.padding(top = 4.dp), compact = compact)
+        BoxWithConstraints(propagateMinConstraints = true) {
+            val bounded = constraints.hasBoundedHeight
+            val targetSize = when {
+                !compact -> 84f
+                bounded -> (48f + (maxHeight - CompactCardContentHeight).value * 0.5f).coerceIn(48f, 84f)
+                else -> 48f
+            }
+            val numberSize by animateFloatAsState(targetSize, label = "tempoSize")
+            Column(
+                Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier)
+                    .padding(horizontal = 12.dp, vertical = verticalPadding),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    "$tempo",
+                    fontSize = numberSize.sp,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = (numberSize + 4f).sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.graphicsLayer {
+                        val p = pulse.value
+                        scaleX = 1f + 0.08f * p
+                        scaleY = 1f + 0.08f * p
+                        alpha = 0.72f + 0.28f * p
+                    },
+                )
+                Text(
+                    "${stringResource(R.string.bpm)} $unitLabel".trim(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextSecondary,
+                    letterSpacing = 2.sp,
+                )
+                extra()
+                TempoDragControl(tempo, onTempo, Modifier.padding(top = 4.dp), compact = compact)
+            }
         }
     }
 }
+
+/** Roughly what the compact card needs with its smallest number; anything above this lets the number grow. */
+private val CompactCardContentHeight = 150.dp

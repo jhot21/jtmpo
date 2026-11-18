@@ -49,4 +49,24 @@ class QueueSheetLogicTest {
         assertEquals(5, queueScrollTarget(currentIndex = 9, firstVisibleIndex = 0, fullyVisible = false))
         assertEquals(0, queueScrollTarget(currentIndex = 3, firstVisibleIndex = 0, fullyVisible = false))
     }
+
+    @Test
+    fun slowReleaseBelowAThirdOfTheGapSettlesBack() {
+        // current stop at 1000, next stop (up) at 200: a third of the 800 gap is about 267
+        assertEquals(0f, slowReleaseVelocity(offset = 800f, currentPosition = 1000f, neighborPosition = 200f, fraction = 1f / 3f, force = 5000f), 0f)
+        assertEquals(0f, slowReleaseVelocity(offset = 1000f, currentPosition = 1000f, neighborPosition = 200f, fraction = 1f / 3f, force = 5000f), 0f)
+    }
+
+    @Test
+    fun slowReleasePastAThirdGoesToTheNextStop() {
+        assertEquals(-5000f, slowReleaseVelocity(offset = 700f, currentPosition = 1000f, neighborPosition = 200f, fraction = 1f / 3f, force = 5000f), 0f)
+        // dragging down towards a stop below
+        assertEquals(5000f, slowReleaseVelocity(offset = 600f, currentPosition = 200f, neighborPosition = 1000f, fraction = 1f / 3f, force = 5000f), 0f)
+    }
+
+    @Test
+    fun slowReleaseWithNoNeighbourOrNoOffsetDoesNothing() {
+        assertEquals(0f, slowReleaseVelocity(offset = 700f, currentPosition = 1000f, neighborPosition = null, fraction = 1f / 3f, force = 5000f), 0f)
+        assertEquals(0f, slowReleaseVelocity(offset = Float.NaN, currentPosition = 1000f, neighborPosition = 200f, fraction = 1f / 3f, force = 5000f), 0f)
+    }
 }

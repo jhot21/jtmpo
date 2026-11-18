@@ -113,7 +113,8 @@ Use the demo library (Friday Night Set, 10 songs) and try each item at the defau
 
 | Done | Item | Steps | Expected | Result |
 | --- | --- | --- | --- | --- |
-| [ ] | H1 Half stop | In the player tap "Up next". | The sheet opens to exactly five song rows (no half row, no gap) and the player shrinks above it: artist and notes hide, the tempo card gets smaller, previous/play/next stay visible. | |
+| [ ] | H1 Half stop | In the player tap the "Up next" bar. | The sheet opens to exactly five song rows (no half row, no gap). The player shrinks above it: artist and notes hide, the tempo card grows to fill the free height (no empty gap above previous/play/next), previous/play/next stay visible. | |
+| [ ] | H1b Follows the finger | Drag the "Up next" bar up slowly, then back down; do the same from half with the handle or header. | The sheet and the player's layout follow the finger. A small movement (a thumb-width or less) settles back where it was; about 100 dp opens or closes it; a quick flick goes to the next stop. | |
 | [ ] | H2 Player stays usable | At half, tap play/pause, previous/next, the -/+ buttons and drag the tempo track. | All of them work with the sheet still open; the drag bubble floats over the BPM label. | |
 | [ ] | H3 Scroll at half | At half, swipe the song list up and down. | The list scrolls; the sheet stays at half. | |
 | [ ] | H4 Playing song visible | Play song 8 (or press next to get there), then open the sheet. Press previous and next. | Past the fifth row the playing song is the last visible row; previous/next keep it on screen; tapping a row that is already visible does not move the list. | |
