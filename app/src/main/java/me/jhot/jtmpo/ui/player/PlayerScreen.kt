@@ -337,7 +337,7 @@ private fun UpNext(entries: List<EffectiveSong>, ui: PlayerUi, onOpen: () -> Uni
     val next = entries.getOrNull(index + 1)
     val label = stringResource(R.string.open_setlist)
     Surface(
-        Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp)
+        Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 12.dp)
             .semantics { contentDescription = label }
             .pointerInput(Unit) {
                 var drag = 0f
