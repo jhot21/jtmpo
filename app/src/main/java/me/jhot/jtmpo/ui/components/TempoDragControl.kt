@@ -1,6 +1,5 @@
 package me.jhot.jtmpo.ui.components
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +33,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.jhot.jtmpo.domain.TempoLimits
 import me.jhot.jtmpo.ui.theme.Accent
@@ -42,12 +42,15 @@ import me.jhot.jtmpo.ui.theme.SurfaceRaised
 private val ThumbSize = 28.dp
 private val BubbleHeight = 44.dp
 
+/** The space the drag control normally reserves above its track for the value bubble. */
+val TempoBubbleSpace = BubbleHeight
+
 /**
  * - / + buttons around a drag track. The value bubble floats above the thumb so a finger on the
  * thumb never hides it. Out-of-range results are clamped here; [onTempo] only sees valid values.
  */
 @Composable
-fun TempoDragControl(tempo: Int, onTempo: (Int) -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
+fun TempoDragControl(tempo: Int, onTempo: (Int) -> Unit, modifier: Modifier = Modifier, bubbleSpace: Dp = TempoBubbleSpace) {
     val haptic = LocalHapticFeedback.current
     val currentTempo by rememberUpdatedState(tempo)
     val currentOnTempo by rememberUpdatedState(onTempo)
@@ -72,19 +75,18 @@ fun TempoDragControl(tempo: Int, onTempo: (Int) -> Unit, modifier: Modifier = Mo
             val thumbX = with(density) { ((trackWidthPx - thumbPx) * fraction).toDp() }
 
             Column {
-                // Reserved height so the bubble never shifts the layout or clips. Compact reserves none: the bubble
-                // then floats over the space above the track (the tempo label) while it is dragged.
-                val reserved by animateDpAsState(if (compact) 0.dp else BubbleHeight, label = "bubbleSpace")
-                Box(Modifier.fillMaxWidth().height(reserved)) {
+                // Space reserved above the track so the bubble never shifts the layout or clips. A caller short of room
+                // passes less (down to none): the bubble then floats over whatever is above the track while dragged.
+                Box(Modifier.fillMaxWidth().height(bubbleSpace)) {
                     if (dragging) {
                         val bubbleWidth = 64.dp
                         val bubbleX = (thumbX + ThumbSize / 2 - bubbleWidth / 2)
                             .coerceIn(0.dp, trackWidth - bubbleWidth)
                         Box(
                             Modifier
-                                .align(if (compact) Alignment.BottomStart else Alignment.TopStart)
-                                // requiredHeight centres the bubble on the empty compact box; lift it clear of the track.
-                                .offset(x = bubbleX, y = if (compact) -(BubbleHeight - 6.dp) / 2 else 0.dp)
+                                .align(Alignment.BottomStart)
+                                // requiredHeight centres the bubble on the (possibly empty) box; sit it just above the track.
+                                .offset(x = bubbleX, y = (bubbleSpace - (BubbleHeight - 6.dp)) / 2 - 3.dp * (bubbleSpace / BubbleHeight))
                                 .width(bubbleWidth)
                                 .requiredHeight(BubbleHeight - 6.dp)
                                 .background(Accent, RoundedCornerShape(12.dp)),

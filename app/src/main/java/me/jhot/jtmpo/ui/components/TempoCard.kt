@@ -1,12 +1,8 @@
 package me.jhot.jtmpo.ui.components
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,7 +41,6 @@ fun TempoCard(
     pulses: SharedFlow<Unit>,
     onTempo: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    compact: Boolean = false,
     extra: @Composable ColumnScope.() -> Unit = {},
 ) {
     val pulse = remember { Animatable(0f) }
@@ -56,28 +51,22 @@ fun TempoCard(
             pulse.animateTo(0f, tween(durationMillis = 160))
         }
     }
-    // Compact is the player with its setlist open. The caller may give the card all the height that is left (a
-    // weighted modifier); then the number grows with that room, up to its full size, and the content is centred,
-    // so the card never leaves an empty gap. Without bounded height it is simply small.
-    val verticalPadding by animateDpAsState(if (compact) 6.dp else 16.dp, label = "tempoPadding")
+    // The card is as tall as it naturally is, and only gets smaller when the height it is offered is less (the player
+    // with its setlist open): the number, the padding and the space for the drag bubble all shrink together with the
+    // offered height, and never grow past their natural size. Without a bounded height (Practice) it is natural.
     Surface(
         modifier.fillMaxWidth().widthIn(max = 480.dp),
         color = SurfaceCard,
         shape = MaterialTheme.shapes.large,
     ) {
         BoxWithConstraints(propagateMinConstraints = true) {
-            val bounded = constraints.hasBoundedHeight
-            val targetSize = when {
-                !compact -> 84f
-                bounded -> (48f + (maxHeight - CompactCardContentHeight).value * 0.5f).coerceIn(48f, 84f)
-                else -> 48f
-            }
-            val numberSize by animateFloatAsState(targetSize, label = "tempoSize")
+            val t = if (constraints.hasBoundedHeight) {
+                ((maxHeight - TempoCardMinHeight) / (TempoCardNaturalHeight - TempoCardMinHeight)).coerceIn(0f, 1f)
+            } else 1f
+            val numberSize = 48f + 36f * t
             Column(
-                Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier)
-                    .padding(horizontal = 12.dp, vertical = verticalPadding),
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp + 10.dp * t),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
             ) {
                 Text(
                     "$tempo",
@@ -99,11 +88,12 @@ fun TempoCard(
                     letterSpacing = 2.sp,
                 )
                 extra()
-                TempoDragControl(tempo, onTempo, Modifier.padding(top = 4.dp), compact = compact)
+                TempoDragControl(tempo, onTempo, Modifier.padding(top = 4.dp), bubbleSpace = TempoBubbleSpace * t)
             }
         }
     }
 }
 
-/** Roughly what the compact card needs with its smallest number; anything above this lets the number grow. */
-private val CompactCardContentHeight = 150.dp
+/** The card's height at its smallest (smallest number, no space reserved for the bubble) and at its natural size. */
+val TempoCardMinHeight = 145.dp
+val TempoCardNaturalHeight = 274.dp

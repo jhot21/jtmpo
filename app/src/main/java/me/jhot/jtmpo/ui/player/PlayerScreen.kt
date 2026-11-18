@@ -21,11 +21,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
@@ -40,6 +38,10 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.lerp
+import androidx.compose.ui.unit.offset
+import me.jhot.jtmpo.ui.components.TempoCardMinHeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import kotlin.math.roundToInt
@@ -127,8 +129,6 @@ private fun PlayerContent(
     val headerDp = if (headerPx > 0) with(density) { headerPx.toDp() } else 72.dp
     val rowDp = if (rowPx > 0) with(density) { rowPx.toDp() } else 56.dp
     val peek = queuePeekHeight(QueueHandleHeight, headerDp, rowDp, entries.size)
-    // True from the moment a drag or tap is heading for half or full: the player compacts while the sheet opens.
-    val queueShown = sheet.targetValue != QueueStop.Collapsed
     BackHandler(enabled = sheet.currentValue != QueueStop.Collapsed) { scope.launch { sheet.animateTo(QueueStop.Collapsed) } }
     // At the half stop the playing song must be on screen. Keyed on the settled stop and the current entry only, so
     // reordering or editing the list does not undo the user's own scrolling, and only scrolls when it is out of view.
@@ -241,7 +241,7 @@ private fun PlayerContent(
                         Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = viewportHeight),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Header(ui, onBack, compact = queueShown)
+                        Header(ui, onBack, progress = ::openProgress)
                         if (!ui.hasSong) {
                             Text(
                                 "Nothing loaded. Open a setlist and tap a song.",
@@ -250,12 +250,12 @@ private fun PlayerContent(
                                 modifier = Modifier.padding(top = 48.dp),
                             )
                         } else {
-                            SongInfo(ui, compact = queueShown)
-                            // With the queue open the card takes whatever height the other pieces leave, so there is no
-                            // empty gap above the transport row.
+                            SongInfo(ui, progress = ::openProgress)
+                            // The card is at most its natural size and takes whatever the other pieces leave when that
+                            // is less, so it only ever shrinks as the sheet opens (never grows). The floor keeps it from
+                            // collapsing when everything else overflows and the player scrolls.
                             TempoCard(
-                                modifier = if (queueShown) Modifier.weight(1f) else Modifier,
-                                compact = queueShown,
+                                modifier = Modifier.weight(1f, fill = false).heightIn(min = TempoCardMinHeight),
                                 tempo = ui.tempo,
                                 unitLabel = ui.tempoUnit,
                                 pulses = pulses,
@@ -263,7 +263,7 @@ private fun PlayerContent(
                             )
                             Chips(
                                 ui,
-                                compact = queueShown,
+                                progress = ::openProgress,
                                 onEdit = { if (editUi?.loaded == true) chipEditing = editVm },
                             )
                             if (ui.unsaved && editVm != null) {
@@ -282,7 +282,7 @@ private fun PlayerContent(
                     }
                 }
                 // Outside the scroll area so it sits right above the sheet on tall screens.
-                if (ui.hasSong) Transport(ui, vm, compact = queueShown)
+                if (ui.hasSong) Transport(ui, vm, progress = ::openProgress)
             }
         }
 
@@ -358,10 +358,26 @@ private fun PlayerContent(
     }
 }
 
+/** The artist and notes finish sliding away during the first part of the sheet's movement. */
+private fun slideProgress(progress: Float): Float = (progress / 0.5f).coerceAtMost(1f)
+
+/** Vertical padding that moves from [from] to [to] with [progress]; read at layout time, so a drag never recomposes. */
+private fun Modifier.verticalPaddingLerp(from: Dp, to: Dp, progress: () -> Float): Modifier = layout { measurable, constraints ->
+    val pad = lerp(from, to, progress()).roundToPx()
+    val placeable = measurable.measure(constraints.offset(vertical = -2 * pad))
+    layout(placeable.width, placeable.height + 2 * pad) { placeable.place(0, pad) }
+}
+
+/** A fixed height that moves from [from] to [to] with [progress]. */
+private fun Modifier.heightLerp(from: Dp, to: Dp, progress: () -> Float): Modifier = layout { measurable, constraints ->
+    val h = lerp(from, to, progress()).roundToPx()
+    val placeable = measurable.measure(Constraints(constraints.minWidth, constraints.maxWidth, h, h))
+    layout(placeable.width, h) { placeable.place(0, 0) }
+}
+
 @Composable
-private fun Header(ui: PlayerUi, onBack: () -> Unit, compact: Boolean) {
-    val minHeight by animateDpAsState(if (compact) 48.dp else 64.dp, label = "headerHeight")
-    Row(Modifier.fillMaxWidth().heightIn(min = minHeight), verticalAlignment = Alignment.CenterVertically) {
+private fun Header(ui: PlayerUi, onBack: () -> Unit, progress: () -> Float) {
+    Row(Modifier.fillMaxWidth().heightLerp(64.dp, 48.dp, progress), verticalAlignment = Alignment.CenterVertically) {
         val closeLabel = stringResource(R.string.close_player)
         IconButton(onBack, Modifier.semantics { contentDescription = closeLabel }) { Icon(painterResource(R.drawable.ic_chevron_down), null, Modifier.size(32.dp)) }
         Text(
@@ -379,31 +395,45 @@ private fun Header(ui: PlayerUi, onBack: () -> Unit, compact: Boolean) {
 }
 
 @Composable
-private fun SongInfo(ui: PlayerUi, compact: Boolean) {
-    val verticalPadding by animateDpAsState(if (compact) 4.dp else 16.dp, label = "songInfoPadding")
-    Column(Modifier.padding(vertical = verticalPadding).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun SongInfo(ui: PlayerUi, progress: () -> Float) {
+    Column(
+        Modifier.fillMaxWidth().verticalPaddingLerp(16.dp, 4.dp, progress),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Text(
             ui.title,
+            Modifier.background(MaterialTheme.colorScheme.background),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        // Artist and notes drop out while the setlist is open, to leave room for the controls.
-        AnimatedVisibility(!compact) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                ui.artist?.let { Text(it, color = TextSecondary, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                ui.notes?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary,
-                        textAlign = TextAlign.Center,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 6.dp),
-                    )
+        // Artist and notes slide up behind the title and fade out as the setlist opens, taking their height with them.
+        if (ui.artist != null || ui.notes != null) {
+            Box(
+                Modifier.fillMaxWidth().clipToBounds()
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+                        val p = slideProgress(progress())
+                        val h = (placeable.height * (1f - p)).roundToInt()
+                        layout(placeable.width, h) { placeable.place(0, h - placeable.height) }
+                    }
+                    .graphicsLayer { alpha = 1f - slideProgress(progress()) },
+            ) {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    ui.artist?.let { Text(it, color = TextSecondary, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                    ui.notes?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary,
+                            textAlign = TextAlign.Center,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
                 }
             }
         }
@@ -411,9 +441,12 @@ private fun SongInfo(ui: PlayerUi, compact: Boolean) {
 }
 
 @Composable
-private fun Chips(ui: PlayerUi, compact: Boolean, onEdit: () -> Unit) {
-    val verticalPadding by animateDpAsState(if (compact) 2.dp else 14.dp, label = "chipsPadding")
-    Row(Modifier.padding(vertical = verticalPadding), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun Chips(ui: PlayerUi, progress: () -> Float, onEdit: () -> Unit) {
+    Row(
+        Modifier.verticalPaddingLerp(14.dp, 2.dp, progress),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         val sigLabel = stringResource(R.string.edit_time_signature, ui.timeSignature)
         AssistChip(onClick = onEdit, label = { Text(ui.timeSignature) }, modifier = Modifier.semantics { contentDescription = sigLabel })
         val patLabel = stringResource(R.string.edit_click_pattern, ui.patternLabel)
@@ -453,10 +486,9 @@ private fun UnsavedBar(enabled: Boolean, onSaveSetlist: () -> Unit, onSaveLibrar
 }
 
 @Composable
-private fun Transport(ui: PlayerUi, vm: PlayerViewModel, compact: Boolean) {
-    val verticalPadding by animateDpAsState(if (compact) 8.dp else 16.dp, label = "transportPadding")
+private fun Transport(ui: PlayerUi, vm: PlayerViewModel, progress: () -> Float) {
     Row(
-        Modifier.fillMaxWidth().widthIn(max = 480.dp).padding(vertical = verticalPadding),
+        Modifier.fillMaxWidth().widthIn(max = 480.dp).verticalPaddingLerp(16.dp, 8.dp, progress),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
