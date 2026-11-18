@@ -106,6 +106,23 @@ metronome.
 | [ ] | G11 A song takes over | With Practice playing, open a setlist and start a song. Then return to Practice and play. | Practice stops when the song starts, the notification switches to the song, and the setlist is untouched by Practice. Playing in Practice stops the song and resumes the click at the tempo and bar it was paused at. | |
 | [ ] | G12 Back and Settings | From Practice press Back. Reopen jtmpo, open Settings from Practice, then press Back. | Back from Practice leaves the app, with no tab switch. Back from Settings returns to Practice, not to Setlists. | |
 
+## H. Player queue sheet
+
+The setlist at the bottom of the player is a non-modal sheet: hidden (the "Up next" bar), half (five rows) or full.
+Use the demo library (Friday Night Set, 10 songs) and try each item at the default font size and at 1.3x.
+
+| Done | Item | Steps | Expected | Result |
+| --- | --- | --- | --- | --- |
+| [ ] | H1 Half stop | In the player tap "Up next". | The sheet opens to exactly five song rows (no half row, no gap) and the player shrinks above it: artist and notes hide, the tempo card gets smaller, previous/play/next stay visible. | |
+| [ ] | H2 Player stays usable | At half, tap play/pause, previous/next, the -/+ buttons and drag the tempo track. | All of them work with the sheet still open; the drag bubble floats over the BPM label. | |
+| [ ] | H3 Scroll at half | At half, swipe the song list up and down. | The list scrolls; the sheet stays at half. | |
+| [ ] | H4 Playing song visible | Play song 8 (or press next to get there), then open the sheet. Press previous and next. | The playing song is the last visible row when it is past the fifth, and is always on screen at half. | |
+| [ ] | H5 Full and back | Drag the sheet handle (or the header) up, then down. | Up goes to full height and the full list scrolls; down returns to half, and again to hidden (the "Up next" bar). No strip of the sheet shows at the bottom edge while hidden. | |
+| [ ] | H6 Reorder | At half and at full, drag a row by its handle. | The row moves and the new order is kept; it does not fight with scrolling or the sheet. | |
+| [ ] | H7 Edit and add | From the sheet tap a row's pencil, then "Add from library". | The edit sheet and the add sheet open over the queue as before; closing them leaves the queue where it was. | |
+| [ ] | H8 Back and unsaved change | Make an unsaved tempo change, open the sheet, then press Back. | Back hides the sheet first, and a second Back leaves the player. The unsaved bar is visible at half (at 1.3x scroll the player to reach the save buttons). | |
+| [ ] | H9 Short setlist | Open a setlist with fewer than five songs (add one if needed) and open the sheet. | The sheet is only as tall as its songs, no empty space. | |
+
 ## Sign-off
 
 Date: ____  Build/commit: ____  Overall: ____
